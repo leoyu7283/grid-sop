@@ -1,0 +1,76 @@
+name: 更新資料並部署
+
+on:
+  schedule:
+    # 每 4 小時一次，派網 4 小時 K 線收盤後 5 分鐘（UTC 0,4,8,12,16,20 點 → 台灣時間 8,12,16,20,0,4 點）
+    - cron: "5 */4 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: 抓取最新資料
+        id: fetch
+        continue-on-error: true
+        env:
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: python build_data.py data.new.json
+
+      - name: 成功：存到 data 分支（覆蓋舊版，不累積歷史）
+        if: steps.fetch.outcome == 'success'
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv data.new.json data.json
+          mkdir -p /tmp/databranch && cp data.json /tmp/databranch/
+          cd /tmp/databranch
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898732+github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git commit -q -m "資料 $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+
+      - name: 失敗：沿用上一次成功的資料
+        if: steps.fetch.outcome != 'success'
+        run: |
+          echo "::warning::這次抓取資料失敗，網頁沿用上一次成功的資料"
+          git fetch -q --depth 1 origin data && git show origin/data:data.json > data.json || echo "沒有 data 分支，使用 repository 內附的初始資料"
+
+      - name: 產生網頁（抓取失敗時沿用上一次的資料）
+        run: |
+          mkdir -p site
+          python build_html.py data.json site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

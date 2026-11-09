@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>網格下單 SOP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF1F4; --panel:#FFFFFF; --ink:#16202E; --muted:#5C6878; --line:#D4DAE1;
+  --accent:#1F5FBF; --accent-soft:rgba(31,95,191,.10); --band:rgba(31,95,191,.07);
+  --warn:#A8670E; --warn-soft:#FBF1DF; --bad:#B23A48; --bad-soft:#F8E6E8; --good:#2A7A55; --good-soft:#E3F1EA;
+  --num:"IBM Plex Sans","Noto Sans TC",system-ui,sans-serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#11161D; --panel:#19202A; --ink:#E4E9EF; --muted:#94A0AF; --line:#2C3542;
+    --accent:#6FA2F0; --accent-soft:rgba(111,162,240,.14); --band:rgba(111,162,240,.09);
+    --warn:#E0A650; --warn-soft:#33291A; --bad:#E57C88; --bad-soft:#3A1F24; --good:#6CC49A; --good-soft:#1B3128;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#11161D; --panel:#19202A; --ink:#E4E9EF; --muted:#94A0AF; --line:#2C3542;
+  --accent:#6FA2F0; --accent-soft:rgba(111,162,240,.14); --band:rgba(111,162,240,.09);
+  --warn:#E0A650; --warn-soft:#33291A; --bad:#E57C88; --bad-soft:#3A1F24; --good:#6CC49A; --good-soft:#1B3128;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.num{font-family:var(--num);font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+
+/* header */
+header.top{border-bottom:1px solid var(--line);background:var(--panel)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;padding-top:16px;padding-bottom:16px}
+.brand{display:flex;align-items:baseline;gap:14px;margin-right:auto}
+.brand h1{font-size:22px;font-weight:900;letter-spacing:.02em;margin:0;line-height:1.2}
+.brand .stamp{font-size:13px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--paper)}
+.seg button{border:0;background:transparent;padding:6px 14px;cursor:pointer;font-size:14px;color:var(--muted)}
+.seg button.locked{opacity:.4;cursor:not-allowed;text-decoration:line-through;text-decoration-color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel);font-weight:700}
+.ctrl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+
+/* steps */
+nav.steps{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--line)}
+nav.steps .wrap{display:flex;gap:0;overflow-x:auto}
+nav.steps button{border:0;background:none;cursor:pointer;padding:14px 18px 12px;display:flex;gap:10px;align-items:baseline;border-bottom:3px solid transparent;white-space:nowrap;color:var(--muted)}
+nav.steps button b{font-family:var(--num);font-weight:600;font-size:13px;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor}
+nav.steps button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:700}
+nav.steps button[aria-selected="true"] b{background:var(--accent);border-color:var(--accent);color:#fff}
+nav.steps .picked{margin-left:auto;align-self:center;font-size:13px;color:var(--muted);white-space:nowrap;padding-left:16px}
+
+main{padding:28px 0 56px}
+section[hidden]{display:none!important}
+.ib{display:inline-grid;place-items:center;width:17px;height:17px;margin-left:6px;border-radius:50%;border:1.3px solid var(--muted);background:none;color:var(--muted);font:italic 600 11px/1 Georgia,serif;cursor:pointer;padding:0;vertical-align:1px;flex:none}
+.ib:hover,.ib[aria-expanded="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.help{display:none!important}
+body.show-help .help{display:block!important}
+body.show-help button.ib[data-help]{display:none}
+.state{color:var(--ink)!important}
+.pop{position:absolute;z-index:30;width:min(340px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.6;color:var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.14)}
+.pop[hidden]{display:none}
+.pop p{margin:0 0 6px}
+.pop .tiers{margin-top:6px}
+.helpsw{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted)}
+.helpsw .ib{margin:0;pointer-events:none}
+.helpsw[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:600}
+.helpsw[aria-pressed="true"] .ib{border-color:var(--panel);color:var(--panel)}
+.helptip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:13.5px;background:var(--accent-soft);color:var(--ink);border-radius:8px;padding:8px 14px;margin:0 0 14px}
+.helptip[hidden]{display:none}
+.helptip .ib{cursor:default;margin:0 2px}
+.mode{display:inline-block;font-size:14px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:3px 10px;margin:0 0 10px}
+.lede{color:var(--muted);margin:0 0 18px;max-width:72ch;font-size:14px}
+
+/* filters */
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px 28px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:18px}
+.f label{display:flex;justify-content:space-between;font-size:14px;font-weight:500;margin-bottom:2px}
+.f label .num{font-weight:600;color:var(--accent)}
+.hl{color:var(--bad);font-weight:500}
+.tiers{list-style:none;padding:0;margin:6px 0 0;font-size:12.5px;color:var(--muted);line-height:1.5}
+.tiers li{display:flex;gap:8px}
+.firstpass{font-weight:500;color:var(--ink)!important}
+.tiers b{flex:none;min-width:58px;font-weight:600;color:var(--ink)}
+.f small{display:block;color:var(--muted);font-size:12.5px;line-height:1.45;margin-top:4px}
+input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
+.dual{position:relative;height:24px}
+.dual input{position:absolute;inset:0;pointer-events:none;background:none;-webkit-appearance:none;appearance:none;margin:0}
+.dual input::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);border:2px solid var(--panel);box-shadow:0 0 0 1px var(--accent);cursor:pointer}
+.dual input::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid var(--panel);cursor:pointer}
+.dual .rail{position:absolute;left:0;right:0;top:10px;height:4px;border-radius:2px;background:var(--line)}
+.dual .fill{position:absolute;top:10px;height:4px;border-radius:2px;background:var(--accent)}
+
+.tablebar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:0 0 10px}
+.tablebar .count{font-size:15px}
+.tablebar .count b{font-family:var(--num);font-size:20px}
+.check{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);cursor:pointer}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+
+.scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{padding:9px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:nth-child(2),td:nth-child(2),th:nth-child(8),td:nth-child(8),th:last-child,td:last-child{text-align:left}
+thead th{font-weight:500;color:var(--muted);font-size:13px;position:sticky;top:0;background:var(--panel)}
+thead th button{border:0;background:none;padding:0;cursor:pointer;color:inherit;font-weight:inherit}
+thead th button[data-dir]::after{content:attr(data-dir);margin-left:3px;color:var(--accent)}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--accent-soft)}
+tbody tr.fail td{color:var(--muted)}
+tbody tr.fail td.sym b{font-weight:500}
+tbody tr:last-child td{border-bottom:0}
+td.sym b{font-weight:700;margin-right:6px}
+td.sym span{color:var(--muted);font-size:12.5px}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:4px;margin-right:4px;line-height:1.6}
+.tag.ok{background:var(--good-soft);color:var(--good)}
+.tag.no{background:var(--bad-soft);color:var(--bad)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.dim{border:1px solid var(--line);color:var(--muted)}
+.meter{display:inline-block;width:46px;height:5px;border-radius:3px;background:var(--line);vertical-align:middle;margin-left:8px;position:relative;overflow:hidden}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:var(--accent)}
+details.excluded{margin-top:16px;font-size:14px}
+details.excluded summary{cursor:pointer;color:var(--muted)}
+details.excluded ul{columns:3 220px;padding-left:18px;color:var(--muted);font-size:13px}
+
+/* step 2 */
+.coinhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin-bottom:14px}
+.coinhead h2{margin:0;font-size:30px;font-weight:900;letter-spacing:.01em;line-height:1.1}
+.coinhead h2 small{font-size:15px;font-weight:500;color:var(--muted);margin-left:8px}
+.coinhead .px{font-size:22px;font-weight:600}
+.coinhead select{margin-left:auto;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin-bottom:18px}
+.stat{padding:12px 16px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat .k{font-size:13px;color:var(--muted)}
+.stat .v{font-family:var(--num);font-size:22px;font-weight:600;line-height:1.3}
+.stat .h{font-size:12.5px;color:var(--muted);line-height:1.45}
+.two{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr);gap:18px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.card h3{font-size:16px;margin:0 0 10px;font-weight:700}
+.chartbox svg{display:block;width:100%;height:auto;touch-action:pan-y}
+#atrChart{cursor:crosshair}#chart{cursor:crosshair}
+#chartWrap{position:relative}
+#tip{position:absolute;top:24px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:var(--num);font-size:12.5px;line-height:1.55;box-shadow:0 4px 14px rgba(0,0,0,.12);pointer-events:none;display:flex;flex-direction:column;min-width:120px}
+#tip[hidden]{display:none}
+#tip b{font-family:var(--body);font-size:13px;margin-bottom:2px}
+#tip .atr{color:var(--accent);border-top:1px solid var(--line);margin-top:3px;padding-top:3px}
+#tip .up{color:var(--good)} #tip .dn{color:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.atrbox{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.atrbox .cap{font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+
+.form .row{margin-bottom:14px}
+.form .row label{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;font-weight:500}
+.form .row label .num{color:var(--accent);font-weight:600}
+.form .row small{display:block;font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:2px}
+.rangebox{display:flex;align-items:center;gap:8px;margin-top:4px}
+.rangebox input{flex:1;min-width:0;margin-top:0!important}
+.rangebox span{color:var(--muted)}
+.linkbtn{border:0;background:none;color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;padding:0}
+.netbox{display:flex;align-items:center;gap:8px;margin-top:4px}
+.netbox input{flex:0 0 110px;margin-top:0!important}
+.netbox #netOut{margin-left:auto;font-weight:600;color:var(--accent);font-size:14px}
+.form input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);margin-top:4px}
+.form .seg{margin-top:6px}
+.dirnote{font-size:13px;color:var(--muted);margin-top:6px}
+
+.pcard{margin-top:18px;border:1.5px solid var(--ink);border-radius:10px;overflow:hidden;background:var(--panel)}
+.pcard header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--ink);color:var(--panel)}
+.pcard header b{font-size:15px}
+.pcard header button{border:1px solid currentColor;background:none;color:inherit;border-radius:6px;padding:3px 12px;cursor:pointer;font-size:13px}
+.pcard dl{margin:0;display:grid;grid-template-columns:auto 1fr}
+.pcard dt,.pcard dd{padding:8px 16px;border-bottom:1px solid var(--line);margin:0}
+.pcard dt{color:var(--muted);font-size:14px}
+.pcard dd{text-align:right;font-family:var(--num);font-weight:600;font-variant-numeric:tabular-nums}
+.pcard dd.txt{font-family:var(--body)}
+.pcard dl > :nth-last-child(-n+2){border-bottom:0}
+.warns{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px}
+.warns li{font-size:13.5px;padding:7px 12px;border-radius:6px;line-height:1.5}
+.warns li.w{background:var(--warn-soft);color:var(--warn)}
+.warns li.b{background:var(--bad-soft);color:var(--bad)}
+.warns li.g{background:var(--good-soft);color:var(--good)}
+
+/* step 3 */
+.checklist{list-style:none;padding:0;margin:0;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.checklist li{display:flex;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line);align-items:flex-start}
+.checklist li:last-child{border-bottom:0}
+.checklist input{width:20px;height:20px;accent-color:var(--good);margin-top:3px;flex:none}
+.checklist label{cursor:pointer;flex:1}
+.checklist label b{display:block;font-weight:500}
+.checklist label span{font-size:13px;color:var(--muted)}
+.checklist .auto{font-size:12px;margin-left:auto;flex:none}
+.checklist li.done label b{text-decoration:line-through;text-decoration-color:var(--muted);color:var(--muted)}
+.progress{display:flex;align-items:center;gap:14px;margin:0 0 14px}
+.progress .bar{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.progress .bar i{display:block;height:100%;background:var(--good);transition:width .25s}
+.go{margin-top:18px;padding:14px 18px;border-radius:10px;font-weight:500}
+.go.ready{background:var(--good-soft);color:var(--good)}
+.go.wait{background:var(--paper);border:1px dashed var(--line);color:var(--muted)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted);background:var(--panel);border:1px dashed var(--line);border-radius:10px}
+
+footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;color:var(--muted)}
+@media (max-width:860px){
+  .two{grid-template-columns:1fr}
+  .brand{width:100%}
+  .coinhead select{margin-left:0}
+  .stat{border-right:0;border-bottom:1px solid var(--line)}
+  nav.steps .picked{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <h1>網格下單 SOP</h1>
+      <span class="stamp" id="stamp"></span>
+    </div>
+    <div class="ctrl">K 線週期
+      <div class="seg" role="group" aria-label="K 線週期">
+        <button data-tf="4H">4 小時</button><button data-tf="1D">日線</button><button data-tf="1W">週線</button>
+      </div>
+    </div>
+    <div class="ctrl">網格類型
+      <div class="seg" role="group" aria-label="網格類型">
+        <button data-mk="spot">現貨網格</button><button data-mk="perp">合約網格</button>
+      </div>
+    </div>
+    <div class="ctrl"><button type="button" class="helpsw" id="helpSw" aria-pressed="false"><span class="ib" aria-hidden="true">i</span>顯示說明</button></div>
+  </div>
+</header>
+
+<nav class="steps" aria-label="步驟">
+  <div class="wrap" role="tablist">
+    <button role="tab" data-step="1"><b>1</b>篩選幣種</button>
+    <button role="tab" data-step="2"><b>2</b>設定網格</button>
+    <button role="tab" data-step="3"><b>3</b>下單前檢查</button>
+    <span class="picked" id="picked"></span>
+  </div>
+</nav>
+
+<main class="wrap">
+  <!-- STEP 1 -->
+  <section id="s1">
+    <div class="mode" id="modeTag"></div>
+    <p class="lede">前 100 大扣掉穩定幣、派網未上架和上市太短的幣後，用三個條件做第一關篩選。通過的幣點進去，到第 2 步看線圖再決定。</p>
+    <div class="helptip" id="helpTip" hidden><span>點標題旁的 <span class="ib" aria-hidden="true">i</span> 可以查看說明，或開啟頁面上方的「顯示說明」。</span><button type="button" class="linkbtn" id="helpTipX">知道了</button></div>
+    <div class="filters">
+      <div class="f">
+        <label><span>24h 成交量<button type="button" class="ib" data-help="h-vol" aria-label="說明">i</button></span> <span class="num" id="volOut"></span></label>
+        <input type="range" id="vol" min="0" max="8" step="1">
+        <small class="help" id="h-vol"><span class="hl">成交量</span>越大，網格掛單越容易成交，開倉和止損時的滑點也越小。</small>
+      </div>
+      <div class="f">
+        <label><span>ATR%(30)<button type="button" class="ib" data-help="atrHint" aria-label="說明">i</button></span> <span class="num" id="atrOut"></span></label>
+        <div class="dual"><div class="rail"></div><div class="fill" id="atrFill"></div>
+          <input type="range" id="atrMin" min="0" max="15" step="0.01" aria-label="ATR% 下限">
+          <input type="range" id="atrMax" min="0" max="15" step="0.01" aria-label="ATR% 上限">
+        </div>
+        <small class="help" id="atrHint"></small>
+      </div>
+      <div class="f">
+        <label><span>ER(30)<button type="button" class="ib" data-help="h-er" aria-label="說明">i</button></span> <span class="num" id="erOut"></span></label>
+        <input type="range" id="er" min="0.05" max="1" step="0.05" aria-label="ER 上限">
+        <div class="dual" id="erDual"><div class="rail"></div><div class="fill" id="erFill"></div>
+          <input type="range" id="erLo" min="0" max="1" step="0.05" aria-label="ER 下限">
+          <input type="range" id="erHi" min="0" max="1" step="0.05" aria-label="ER 上限">
+        </div>
+        <div class="help" id="h-er">
+        <small>近 30 根 K 線的淨位移 ÷ 總路程。越接近 0 越像<span class="hl">來回震盪</span>，越接近 1 越像單邊趨勢。</small>
+        <ul class="tiers" id="tierSpot">
+          <li><b class="num">&lt; 0.6</b>初步通過，可考慮開現貨網格。</li>
+          <li><b class="num">&gt; 0.6</b>單邊過強，先觀望。</li>
+        </ul>
+        <ul class="tiers" id="tierPerp">
+          <li><b class="num">&lt; 0.3</b>來回震盪，適合中性網格（雙邊都有爆倉風險，新手慎用），也可以提前開做多或做空網格，埋伏之後的趨勢。</li>
+          <li><b class="num">0.3～0.6</b>有方向，適合做多或做空網格。</li>
+          <li><b class="num">&gt; 0.6</b>單邊過強，先觀望。</li>
+        </ul>
+        </div>
+      </div>
+    </div>
+    <div class="tablebar">
+      <span class="count">通過 <b class="num" id="passN">0</b> 個 <span style="color:var(--muted);font-size:13px">／ 共 <span class="num" id="allN"></span> 個可計算</span></span>
+      <label class="check"><input type="checkbox" id="showFail">顯示未通過的幣</label>
+      <button class="btn" id="resetF" style="margin-left:auto">還原預設門檻</button>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th><button data-sort="rank">市值排名</button></th>
+          <th><button data-sort="sym">幣種</button></th>
+          <th><button data-sort="price">價格</button></th>
+          <th><button data-sort="atr">ATR%</button></th>
+          <th><button data-sort="er">ER</button></th>
+          <th><button data-sort="adx">ADX</button></th>
+          <th><button data-sort="vol">24h 成交量</button></th>
+          <th>派網可開</th>
+          <th>狀態</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <details class="excluded"><summary id="exSum"></summary><ul id="exList"></ul></details>
+  </section>
+
+  <!-- STEP 2 -->
+  <section id="s2" hidden>
+    <div id="s2empty" class="empty"><span id="s2emptyMsg">先在第 1 步選一個幣。</span><br><br><button class="btn primary" data-goto="1">回到篩選</button></div>
+    <div id="s2body" hidden>
+      <div class="coinhead">
+        <h2 id="cName"></h2>
+        <span class="px num" id="cPx"></span>
+        <span id="cTags"></span>
+        <select id="cSel" aria-label="切換幣種"></select>
+      </div>
+      <div class="stats" id="cStats"></div>
+      <div class="two">
+        <div class="card chartbox">
+          <h3 id="chTitle"></h3>
+          <div id="chartWrap"><div id="chart"></div><div id="tip" hidden></div></div>
+          <div class="legend" id="legend"></div>
+          <div class="atrbox">
+            <div class="cap"><span>ATR%(30) 走勢</span><span id="atrCap"></span></div>
+            <div id="atrChart"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card form">
+            <h3>網格參數</h3>
+            <div class="row">
+              <label for="cap">投資額（USDT）</label>
+              <input type="number" id="cap" min="10" step="10" inputmode="decimal">
+            </div>
+            <div class="row" id="dirRow">
+              <label>方向</label>
+              <div class="seg" role="group" aria-label="合約方向">
+                <button data-dir="auto">自動</button><button data-dir="long">做多</button><button data-dir="short">做空</button><button data-dir="neutral">中性（進階）</button>
+              </div>
+              <div class="dirnote" id="dirNote"></div>
+            </div>
+            <div class="row">
+              <label for="look"><span>觀測範圍<button type="button" class="ib" data-help="lookHint" aria-label="說明">i</button></span> <span class="num" id="lookOut"></span></label>
+              <input type="range" id="look" min="10" max="120" step="5">
+              <small class="help" id="lookHint"></small>
+            </div>
+            <div class="row">
+              <label><span>網格區間<button type="button" class="ib" data-help="rangeHint" aria-label="說明">i</button></span> <button type="button" class="linkbtn" id="rangeReset" hidden>還原觀測值</button></label>
+              <div class="rangebox">
+                <input type="number" id="rL" step="any" inputmode="decimal" aria-label="價格下限">
+                <span>~</span>
+                <input type="number" id="rU" step="any" inputmode="decimal" aria-label="價格上限">
+              </div>
+              <small class="help" id="rangeHint">預設帶入觀測範圍的最低價和最高價，可以手動改成更高或更低。</small><small class="state" id="rangeState" hidden></small>
+            </div>
+            <div class="row">
+              <label for="net"><span>單格利潤率（扣費後）<button type="button" class="ib" data-help="netHint" aria-label="說明">i</button></span></label>
+              <div class="netbox"><input type="number" id="net" min="0.05" max="100" step="0.01" inputmode="decimal"><span>%</span><span class="num" id="netOut"></span></div>
+              <small class="state" id="netKey"></small><small class="help" id="netHint"></small>
+            </div>
+            <div class="row">
+              <label><span>網格模式<button type="button" class="ib" data-help="h-mode" aria-label="說明">i</button></span></label>
+              <div class="seg" role="group" aria-label="網格模式">
+                <button aria-pressed="true">等比</button><button class="locked" disabled title="此處固定用等比計算">等差</button>
+              </div>
+              <small class="help" id="h-mode">這裡固定用等比網格計算：等比網格每格利潤率一致，最適合用「單格利潤率」找出合適的格數。確定格數後，到派網開單時可以自行選擇等差或等比。</small>
+            </div>
+            <div class="row" id="levRow">
+              <label for="lev"><span>槓桿（試算用）<button type="button" class="ib" data-help="levHint" aria-label="說明">i</button></span> <span class="num" id="levOut"></span></label>
+              <input type="range" id="lev" min="1" max="20" step="1">
+              <small class="state">強平價必須落在網格區間外。</small><small class="help" id="levHint"></small>
+            </div>
+          </div>
+          <div class="pcard">
+            <header><b>派網參數卡</b><button id="copy">複製</button></header>
+            <dl id="pdl"></dl>
+          </div>
+          <ul class="warns" id="warns"></ul>
+          <div style="margin-top:16px;text-align:right"><button class="btn primary" data-goto="3">參數確定，下一步</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section id="s3" hidden>
+    <div id="s3empty" class="empty">先在第 1 步選幣、第 2 步算好參數。<br><br><button class="btn primary" data-goto="1">回到篩選</button></div>
+    <div id="s3body" hidden>
+      <p class="lede" id="s3lede"></p>
+      <div class="progress"><span class="num" id="progN"></span><div class="bar"><i id="progBar"></i></div></div>
+      <ul class="checklist" id="clist"></ul>
+      <div class="go wait" id="go"></div>
+    </div>
+  </section>
+</main>
+
+<div class="pop" id="pop" role="dialog" hidden></div>
+<footer><div class="wrap">指標設定：ATR(30)、ER(30)、ADX(14)。教學工具：指標只用來判斷「目前適不適合開網格」，不預測漲跌，也不構成投資建議。手續費以派網現貨 0.05%、合約掛單 0.02% 計算；預估強平價請以派網建立機器人時顯示的數字為準。資料來源：CoinGecko、派網公開 API。</div></footer>
+
+<script>
+const DATA = /*DATA*/null;
+const FEE = {spot:0.0005*2, perp:0.0002*2};
+const VOL_STEPS = [0, 5e6, 1e7, 2e7, 5e7, 1e8, 2e8, 5e8, 1e9];
+const _btc = DATA.coins.find(c => c.sym === "BTC");
+const r2 = x => Math.round(x * 100) / 100;
+const btcFloor = (tf, fb) => _btc && _btc.tf[tf] ? r2(_btc.tf[tf].atrPct) : fb;
+const DEF = {
+  "4H": {vol:3, atrMin:btcFloor("4H", 0.8), atrMax:3.5, er:0.6, erLo:0, erHi:0.6},
+  "1D": {vol:3, atrMin:btcFloor("1D", 2), atrMax:8, er:0.6, erLo:0, erHi:0.6},
+  "1W": {vol:3, atrMin:btcFloor("1W", 6), atrMax:24, er:0.6, erLo:0, erHi:0.6}
+};
+const TF = {
+  "4H": {name:"4 小時線", short:"4H", days:1/6, atrMax:10},
+  "1D": {name:"日線", short:"日線", days:1, atrMax:20},
+  "1W": {name:"週線", short:"週線", days:7, atrMax:60}
+};
+function spanText(n){
+  const d = n * TF[S.tf].days;
+  if (d >= 60) return `約 ${Math.round(d/30.4)} 個月`;
+  if (d >= 1) return `約 ${d % 1 ? d.toFixed(1) : d} 天`;
+  return `約 ${Math.round(d*24)} 小時`;
+}
+const tfCoins = () => DATA.coins.filter(c => c.tf[S.tf]);
+const curCoin = () => { const c = byS[S.sym]; return c && c.tf[S.tf] ? c : null; };
+const S = {
+  tf:"1D", mk:"spot", step:1, sort:{key:null, dir:1}, showFail:false,
+  f:{ "4H":{...DEF["4H"]}, "1D":{...DEF["1D"]}, "1W":{...DEF["1W"]} },
+  sym:null, cap:1000, dir:"auto", look:30, net:null, rL:null, rU:null, lev:1
+};
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const byS = Object.fromEntries(DATA.coins.map(c => [c.sym, c]));
+
+// ---------- formatting ----------
+function fp(x){
+  if (x == null || !isFinite(x)) return "—";
+  const a = Math.abs(x);
+  const dec = a >= 1000 ? 1 : a >= 100 ? 2 : a >= 1 ? 3 : Math.min(8, 3 - Math.floor(Math.log10(a)));
+  return x.toLocaleString("en-US", {minimumFractionDigits:dec, maximumFractionDigits:dec});
+}
+function fv(x){
+  if (x >= 1e9) return (x/1e9).toFixed(x>=1e10?0:1) + "B";
+  if (x >= 1e6) return (x/1e6).toFixed(0) + "M";
+  if (x >= 1e3) return (x/1e3).toFixed(0) + "K";
+  return String(Math.round(x));
+}
+const fmtU = x => Math.abs(x) >= 1 ? x.toFixed(2) : Math.abs(x) >= 0.01 ? x.toFixed(3) : x.toPrecision(2);
+const tr2 = x => (Math.floor(x*100 + 1e-9)/100).toFixed(2);
+const pct = (x, d=2) => (x==null||!isFinite(x)) ? "—" : x.toFixed(d) + "%";
+function tlabel(t){
+  const d = new Date(t*1000);
+  const o = {timeZone:"Asia/Taipei", month:"numeric", day:"numeric"};
+  if (S.tf === "4H") o.hour = "2-digit";
+  if (S.tf === "1W"){ o.year = "2-digit"; }
+  return d.toLocaleString("zh-TW", o).replace("時","").replace(" ", " ");
+}
+const esc = s => String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+
+// ---------- screening ----------
+function chg30(c){ const k = c.tf[S.tf].k; return (k[k.length-1][4] / k[k.length-31][4] - 1) * 100; }
+function trendDir(c){ return chg30(c) >= 0 ? "long" : "short"; }
+function reasons(c){
+  const f = S.f[S.tf], d = c.tf[S.tf], r = [];
+  if (S.mk === "perp" && !c.perp) r.push(["no","派網無合約"]);
+  if (S.mk === "spot" && !c.spot) r.push(["no","派網無現貨"]);
+  if (c.vol24 < VOL_STEPS[f.vol]) r.push(["no","成交量不足"]);
+  if (r2(d.atrPct) < f.atrMin) r.push(["warn","波動太低"]);
+  if (r2(d.atrPct) > f.atrMax) r.push(["warn","波動太高"]);
+  if (S.mk === "spot"){
+    if (d.er > f.er) r.push(["warn","單邊過強"]);
+  } else {
+    if (d.er < f.erLo) r.push(["warn","震盪，適合中性（進階）"]);
+    if (d.er > f.erHi) r.push(["warn","單邊過強"]);
+  }
+  return r;
+}
+function sortVal(c, k){
+  const d = c.tf[S.tf];
+  return {rank:c.rank, sym:c.sym, price:d.price, atr:d.atrPct, er:d.er, adx:d.adx, vol:c.vol24}[k];
+}
+function renderTable(){
+  const f = S.f[S.tf];
+  $("#vol").value = f.vol; $("#volOut").textContent = f.vol ? "≥ $" + fv(VOL_STEPS[f.vol]) : "不限";
+  $("#atrMin").value = f.atrMin; $("#atrMax").value = f.atrMax;
+  $("#atrOut").textContent = f.atrMin.toFixed(2) + "% – " + f.atrMax.toFixed(2) + "%";
+  $("#atrHint").innerHTML = {
+    "1D": "平均每日真實波幅（含跳空）除以現價，衡量這支幣每天大約波動現價的幾 %，平均取近 30 天。數字越大，每天<span class=\"hl\">波動幅度</span>越大。",
+    "4H": "每根 4 小時 K 線的平均真實波幅（含跳空）除以現價，平均取近 30 根（約 5 天）。數字越大，<span class=\"hl\">波動幅度</span>越大。",
+    "1W": "每週的平均真實波幅（含跳空）除以現價，衡量這支幣每週大約波動現價的幾 %，平均取近 30 週（約 7 個月）。數字越大，<span class=\"hl\">波動幅度</span>越大。"
+  }[S.tf] + "<br>預設下限＝BTC 當下的數值，可以自己拉滑桿調整。";
+  const mx = TF[S.tf].atrMax;
+  $("#atrMin").max = mx; $("#atrMax").max = mx;
+  $("#atrFill").style.left = (f.atrMin/mx*100) + "%"; $("#atrFill").style.right = (100 - f.atrMax/mx*100) + "%";
+  const isPerp = S.mk === "perp";
+  $("#modeTag").textContent = `目前篩選：${isPerp ? "合約網格" : "現貨網格"}・${TF[S.tf].name}`;
+  $("#tierSpot").hidden = isPerp; $("#tierPerp").hidden = !isPerp;
+  $("#er").hidden = isPerp; $("#erDual").hidden = !isPerp;
+  if (!isPerp){
+    $("#er").value = f.er; $("#erOut").textContent = "≤ " + f.er.toFixed(2);
+  } else {
+    $("#erLo").value = f.erLo; $("#erHi").value = f.erHi;
+    $("#erOut").textContent = f.erLo.toFixed(2) + " – " + f.erHi.toFixed(2);
+    $("#erFill").style.left = (f.erLo*100) + "%"; $("#erFill").style.right = (100 - f.erHi*100) + "%";
+  }
+
+  let rows = tfCoins().map(c => ({c, r: reasons(c)}));
+  const pass = rows.filter(x => !x.r.length).length, miss = DATA.coins.length - rows.length;
+  $("#passN").textContent = pass; $("#allN").textContent = rows.length + (miss ? `（另有 ${miss} 個上市太短，沒有${TF[S.tf].name}資料）` : "");
+  if (!S.showFail) rows = rows.filter(x => !x.r.length);
+  const {key, dir} = S.sort;
+  rows.sort((a, b) => {
+    if (!key){
+      if (!!a.r.length !== !!b.r.length) return a.r.length ? 1 : -1;
+      return a.c.tf[S.tf].er - b.c.tf[S.tf].er;
+    }
+    const va = sortVal(a.c, key), vb = sortVal(b.c, key);
+    return (va > vb ? 1 : va < vb ? -1 : 0) * dir;
+  });
+  $$("thead th button").forEach(b => { if (b.dataset.sort === key) b.dataset.dir = dir > 0 ? "▲" : "▼"; else delete b.dataset.dir; });
+  const tb = $("#tbody");
+  if (!rows.length){
+    tb.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);cursor:default">沒有幣通過目前的門檻。放寬 ATR% 或 ER 的門檻，或勾選「顯示未通過的幣」看差在哪裡。</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(({c, r}) => {
+    const d = c.tf[S.tf];
+    const erW = Math.min(100, d.er*100);
+    const avail = (c.spot ? `<span class="tag ${S.mk==="spot"?"ok":"dim"}">現貨</span>` : "") + (c.perp ? `<span class="tag ${S.mk==="perp"?"ok":"dim"}">合約</span>` : "");
+    const okTxt = S.mk === "perp" ? (d.er < 0.3 ? "初步通過・震盪" : `初步通過・${trendDir(c) === "long" ? "做多" : "做空"}`) : "初步通過";
+    const st = r.length ? r.map(([t, s]) => `<span class="tag ${t}">${s}</span>`).join("") : `<span class="tag ok">${okTxt}</span>`;
+    return `<tr class="${r.length?"fail":""}" data-sym="${esc(c.sym)}" tabindex="0">
+      <td class="num">${c.rank}</td>
+      <td class="sym"><b>${esc(c.sym)}</b><span>${esc(c.name)}</span></td>
+      <td class="num">${fp(d.price)}</td>
+      <td class="num">${pct(d.atrPct)}</td>
+      <td class="num">${d.er.toFixed(2)}<span class="meter"><i style="width:${erW}%"></i></span></td>
+      <td class="num">${d.adx!=null?d.adx.toFixed(0):"—"}</td>
+      <td class="num">$${fv(c.vol24)}</td>
+      <td>${avail}</td><td>${st}</td></tr>`;
+  }).join("");
+}
+
+// ---------- grid calc ----------
+function suggestDir(c){ return trendDir(c); }
+const DIRN = {long:"做多", short:"做空", neutral:"中性"};
+function maxNet(c){ return c.tf[S.tf].atrPct/2 - FEE[S.mk]*100; }
+function defaultNet(c){ return Math.max(0.05, Math.floor((c.tf[S.tf].atrPct/4 - FEE[S.mk]*100) * 20) / 20); }
+function calc(c){
+  const d = c.tf[S.tf], P = d.price, A = d.atr, mk = S.mk;
+  const dir = mk === "perp" ? (S.dir === "auto" ? suggestDir(c) : S.dir) : null;
+  const win = d.k.slice(-S.look);
+  const hiX = Math.max(...win.map(b => b[2])), loX = Math.min(...win.map(b => b[3]));
+  let L = loX, U = hiX;
+  if (U - L < 2*A){ const m = (U + L)/2; L = m - A; U = m + A; }
+  const manual = S.rL != null || S.rU != null;
+  if (S.rL != null) L = S.rL;
+  if (S.rU != null) U = S.rU;
+  const fee = FEE[mk];
+  if (S.net == null) S.net = defaultNet(c);
+  const tgt = S.net/100;
+  // 派網的「網格數量」= 價格線數量，間隔數 = 格數 − 1
+  const m = Math.max(1, Math.floor(Math.log(U/L)/Math.log(1 + tgt + fee)));
+  const n = m + 1, r = Math.pow(U/L, 1/m), levels = [];
+  for (let i=0;i<=m;i++) levels.push(L*Math.pow(r,i));
+  const netLo = (r - 1 - fee)*100, netHi = netLo, gross = (r - 1)*100;
+  const out = {P, A, L, U, hiX, loX, manual, n, m, levels, netLo, netHi, fee, gross, ratio: gross/d.atrPct, pos: (P - L)/(U - L)};
+  // 每格數量相同：每格數量 = 交易額 ÷ 所有價位加總
+  const lev = mk === "spot" ? 1 : S.lev, notional = S.cap * lev;
+  const sumLv = levels.reduce((a, b) => a + b, 0), qtyRaw = notional / sumLv;
+  // 派網會把每格數量無條件捨去到最小下單單位
+  const lot = c.lot && c.lot[mk];
+  let qty = qtyRaw, step = null, qMin = 0, nextInv = null, minInv = null;
+  if (lot){
+    step = lot.step;
+    qty = Math.floor(qtyRaw/step + 1e-9) * step;
+    nextInv = (qty + step) * sumLv / lev;
+  }
+  const used = qty * sumLv, qE = qty > 0 ? qty : qtyRaw;
+  const fillProfit = i => qE*(levels[i+1] - levels[i]) - fee/2*qE*(levels[i] + levels[i+1]);
+  Object.assign(out, {lev, notional, qty, qtyRaw, step, qMin, minInv, nextInv, used, util: used/notional,
+    amtLo: qE*L, amtHi: qE*U, profLo: fillProfit(0), profHi: fillProfit(m-1)});
+  if (mk === "perp") out.dir = dir;
+  return out;
+}
+
+// ---------- charts ----------
+function candleChart(c, g){
+  const d = c.tf[S.tf], W = Math.max(320, Math.round($("#chart").clientWidth) || 800), H = W < 600 ? 300 : 360, pr = 70, pt = 10, pb = 26, pl = 4;
+  const k = W < 600 ? d.k.slice(-Math.max(60, S.look)) : d.k;
+  let lo = Math.min(...k.map(x => x[3]), g.L), hi = Math.max(...k.map(x => x[2]), g.U);
+  const padY = (hi-lo)*0.04; lo -= padY; hi += padY;
+  const y = v => pt + (hi - v)/(hi - lo)*(H - pt - pb);
+  const cw = (W - pr - pl)/k.length, x = i => pl + cw*i + cw/2;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.sym)} K 線與建議網格">`;
+  const lb = Math.max(0, k.length - S.look), lbx = pl + cw*lb;
+  s += `<rect x="${lbx}" y="${pt}" width="${W-pr-lbx}" height="${H-pt-pb}" fill="var(--muted)" fill-opacity=".10"/>
+    <text x="${lbx+4}" y="${H-pb-6}" font-size="11.5" fill="var(--muted)">觀測範圍 ${S.look} 根</text>`;
+  S._cg = {k, W, H, pl, pr, pt, pb, cw, lo, hi};
+  // band + grid ladder
+  s += `<rect x="${pl}" y="${y(g.U)}" width="${W-pr-pl}" height="${y(g.L)-y(g.U)}" fill="var(--band)"/>`;
+  const step = Math.ceil(g.levels.length/90);
+  g.levels.forEach((v, i) => { if (i % step === 0 && i && i < g.levels.length-1) s += `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--accent)" stroke-opacity=".35" stroke-width="1"/>`; });
+  // candles
+  k.forEach((b, i) => {
+    const [t, o, h, l, cl] = b, up = cl >= o, X = x(i);
+    const top = y(Math.max(o, cl)), bh = Math.max(1, Math.abs(y(o) - y(cl)));
+    s += `<line x1="${X}" x2="${X}" y1="${y(h)}" y2="${y(l)}" stroke="var(--ink)" stroke-width="1"/>`;
+    s += `<rect x="${X - cw*0.34}" y="${top}" width="${cw*0.68}" height="${bh}" fill="${up ? "var(--panel)" : "var(--ink)"}" stroke="var(--ink)" stroke-width="1"/>`;
+  });
+  // MA50
+  const cls = d.k.map(b => b[4]), off = d.k.length - k.length; let pts = [];
+  if (d.ma50){
+    for (let i = Math.max(49, off); i < cls.length; i++){ let sum = 0; for (let j = i-49; j <= i; j++) sum += cls[j]; pts.push(`${x(i-off).toFixed(1)},${y(sum/50).toFixed(1)}`); }
+    s += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 3"/>`;
+  }
+  const hl = (v, col, label, dash) => {
+    if (v == null || v < lo || v > hi) return "";
+    return `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="${col}" stroke-width="1.6" ${dash?`stroke-dasharray="${dash}"`:""}/>
+      <text x="${W-pr+6}" y="${y(v)+4}" font-size="12" fill="${col}" font-family="var(--num)">${label}</text>`;
+  };
+  s += hl(g.U, "var(--accent)", "上 " + fp(g.U));
+  s += hl(g.L, "var(--accent)", "下 " + fp(g.L));
+  // price tag
+  const py = y(g.P);
+  s += `<line x1="${pl}" x2="${W-pr}" y1="${py}" y2="${py}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="1 3"/>
+    <rect x="${W-pr+2}" y="${py-10}" width="${pr-4}" height="20" rx="3" fill="var(--ink)"/>
+    <text x="${W-pr+6}" y="${py+4}" font-size="12" fill="var(--panel)" font-family="var(--num)" font-weight="600">${fp(g.P)}</text>`;
+  // x labels
+  (W < 600 ? [0, 30, k.length-1] : [0, 30, 60, 90, k.length-1]).forEach(i => { if (k[i]) s += `<text x="${x(i)}" y="${H-8}" font-size="11.5" fill="var(--muted)" text-anchor="${i===0?"start":i===k.length-1?"end":"middle"}">${tlabel(k[i][0])}</text>`; });
+  s += `<g id="xh" style="display:none;pointer-events:none">
+    <line id="xhV" y1="${pt}" y2="${H-pb}" stroke="var(--ink)" stroke-opacity=".5" stroke-dasharray="3 3"/>
+    <line id="xhH" x1="${pl}" x2="${W-pr}" stroke="var(--ink)" stroke-opacity=".5" stroke-dasharray="3 3"/>
+    <rect id="xhR" x="${W-pr+2}" width="${pr-4}" height="20" rx="3" fill="var(--accent)"/>
+    <text id="xhT" x="${W-pr+6}" font-size="12" fill="var(--panel)" font-family="var(--num)" font-weight="600"></text></g>`;
+  return s + "</svg>";
+}
+function crosshair(e){
+  const g = S._cg, svg = $("#chart svg"); if (!g || !svg) return;
+  const onPrice = e.currentTarget && e.currentTarget.id === "chart";
+  const rect = svg.getBoundingClientRect(), sc = g.W / rect.width;
+  const sx = (e.clientX - rect.left) * sc, sy = (e.clientY - rect.top) * sc;
+  if (sx < g.pl || sx > g.W - g.pr || (onPrice && (sy < g.pt || sy > g.H - g.pb))){ hideXh(); return; }
+  const i = Math.min(g.k.length - 1, Math.max(0, Math.floor((sx - g.pl) / g.cw)));
+  const b = g.k[i], X = g.pl + g.cw*i + g.cw/2;
+  $("#xh").style.display = "";
+  $("#xhV").setAttribute("x1", X); $("#xhV").setAttribute("x2", X);
+  const showH = onPrice;
+  ["xhH","xhR","xhT"].forEach(id => $("#"+id).style.display = showH ? "" : "none");
+  if (showH){
+    const price = g.hi - (sy - g.pt)/(g.H - g.pt - g.pb)*(g.hi - g.lo);
+    $("#xhH").setAttribute("y1", sy); $("#xhH").setAttribute("y2", sy);
+    $("#xhR").setAttribute("y", sy - 10); $("#xhT").setAttribute("y", sy + 4); $("#xhT").textContent = fp(price);
+  }
+  const a = S._ag, av = a ? a.ser[i] : null;
+  if (a && $("#axh")){
+    $("#axh").style.display = av == null ? "none" : "";
+    if (av != null){
+      const ay = a.y(av);
+      $("#axhV").setAttribute("x1", X); $("#axhV").setAttribute("x2", X);
+      $("#axhC").setAttribute("cx", X); $("#axhC").setAttribute("cy", ay);
+      $("#axhR").setAttribute("y", ay - 10); $("#axhT").setAttribute("y", ay + 4); $("#axhT").textContent = av.toFixed(2) + "%";
+    }
+  }
+  const tip = $("#tip"), chg = (b[4]/b[1]-1)*100;
+  tip.innerHTML = `<b>${tlabel(b[0])}</b><span>開 ${fp(b[1])}</span><span>高 ${fp(b[2])}</span><span>低 ${fp(b[3])}</span><span>收 ${fp(b[4])}</span><span class="${chg>=0?"up":"dn"}">${chg>=0?"+":""}${chg.toFixed(2)}%</span>` + (av != null ? `<span class="atr">ATR% ${av.toFixed(2)}%</span>` : "");
+  tip.hidden = false;
+  const box = $("#chart").getBoundingClientRect(), px = X/sc, left = px > box.width/2 ? px - tip.offsetWidth - 12 : px + 12;
+  tip.style.left = Math.max(0, left) + "px";
+}
+function hideXh(){ const x = $("#xh"), ax = $("#axh"); if (x) x.style.display = "none"; if (ax) ax.style.display = "none"; $("#tip").hidden = true; }
+function atrChart(c){
+  const d = c.tf[S.tf], f = S.f[S.tf], g = S._cg;
+  const nb = g ? g.k.length : d.atrSeries.length, ser = d.atrSeries.slice(-nb);
+  const W = g ? g.W : Math.max(320, Math.round($("#atrChart").clientWidth) || 800), H = 80, pr = 70, pl = 4, pt = 6, pb = 6;
+  const vals = ser.filter(v => v != null);
+  if (!vals.length) return "";
+  let lo = Math.min(...vals, f.atrMin), hi = Math.max(...vals, f.atrMax);
+  lo = Math.max(0, lo - (hi-lo)*0.08); hi += (hi-lo)*0.08;
+  const y = v => pt + (hi - v)/(hi - lo)*(H - pt - pb), cw = (W - pr - pl)/ser.length;
+  S._ag = {ser, y, cw, pl, W, pr};
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ATR% 走勢">`;
+  s += `<rect x="${pl}" y="${y(f.atrMax)}" width="${W-pr-pl}" height="${y(f.atrMin)-y(f.atrMax)}" fill="var(--good-soft)"/>`;
+  const pts = ser.map((v, i) => v == null ? null : `${(pl+cw*i+cw/2).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean);
+  s += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+  s += `<text x="${W-pr+6}" y="${y(f.atrMax)+4}" font-size="11.5" fill="var(--good)" font-family="var(--num)">${f.atrMax}%</text>`;
+  s += `<text x="${W-pr+6}" y="${y(f.atrMin)+4}" font-size="11.5" fill="var(--good)" font-family="var(--num)">${f.atrMin}%</text>`;
+  s += `<g id="axh" style="display:none;pointer-events:none">
+    <line id="axhV" y1="${pt}" y2="${H-pb}" stroke="var(--ink)" stroke-opacity=".5" stroke-dasharray="3 3"/>
+    <circle id="axhC" r="3.5" fill="var(--accent)" stroke="var(--panel)" stroke-width="1.5"/>
+    <rect id="axhR" x="${W-pr+2}" width="${pr-4}" height="20" rx="3" fill="var(--accent)"/>
+    <text id="axhT" x="${W-pr+6}" font-size="12" fill="var(--panel)" font-family="var(--num)" font-weight="600"></text></g>`;
+  return s + "</svg>";
+}
+
+// ---------- step 2 ----------
+function renderCoin(){
+  const c = curCoin();
+  $("#s2empty").hidden = !!c; $("#s2body").hidden = !c;
+  $("#s2emptyMsg").textContent = S.sym && byS[S.sym] ? `${S.sym} 上市時間太短，沒有足夠的${TF[S.tf].name}資料，請切換 K 線週期或換一個幣。` : "先在第 1 步選一個幣。";
+  if (!c){ closePop(); return; }
+  const d = c.tf[S.tf], r = reasons(c);
+  $("#cName").innerHTML = `${esc(c.sym)}<small>${esc(c.name)}・市值第 ${c.rank} 名</small>`;
+  $("#cPx").textContent = fp(d.price) + " USDT";
+  $("#cTags").innerHTML = r.length ? r.map(([t, s]) => `<span class="tag ${t}">${s}</span>`).join("") : `<span class="tag ok">初步通過</span>`;
+  const opts = tfCoins().slice().sort((a,b)=>a.rank-b.rank).map(x => `<option value="${esc(x.sym)}" ${x.sym===c.sym?"selected":""}>${esc(x.sym)}${reasons(x).length?"":" ✓"}</option>`).join("");
+  $("#cSel").innerHTML = opts;
+  const erTxt = d.er <= 0.15 ? "明顯震盪" : d.er <= 0.3 ? "偏震盪" : d.er <= 0.6 ? "有方向" : "單邊趨勢";
+  const adxTxt = d.adx == null ? "" : d.adx < 20 ? "無明顯趨勢" : d.adx < 25 ? "趨勢偏弱" : "趨勢明確";
+  const maTxt = d.price >= d.ma50 ? "價格在均線上方" : "價格在均線下方";
+  const g0 = calc(c);
+  $("#cStats").innerHTML = [
+    ["ATR%(30)", pct(d.atrPct), `平均每根 K 線波動 ${fp(d.atr)}`],
+    ["ER(30)", d.er.toFixed(2), erTxt],
+    ["ADX(14)", d.adx != null ? d.adx.toFixed(1) : "—", adxTxt],
+    ["MA50", fp(d.ma50), maTxt],
+    [`近 ${S.look} 根高／低`, `${fp(g0.hiX)}`, `低點 ${fp(g0.loX)}`]
+  ].map(([k, v, h]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join("");
+
+  // form state
+  if (document.activeElement !== $("#cap")) $("#cap").value = S.cap;
+  $$("#dirRow [data-dir]").forEach(b => b.setAttribute("aria-pressed", b.dataset.dir === S.dir));
+  $("#look").value = S.look; $("#lookOut").textContent = `近 ${S.look} 根 K 線`;
+  $("#lookHint").textContent = `取這段期間（${spanText(S.look)}）的最高價和最低價，帶入下方的網格區間。線圖上灰色底色就是觀測範圍。`;
+  if (S.net == null) S.net = defaultNet(c);
+  if (document.activeElement !== $("#net")) $("#net").value = S.net;
+  const mxN = maxNet(c);
+  $("#netKey").innerHTML = `這個幣建議不超過 <b class="num">${mxN > 0 ? mxN.toFixed(2) + "%" : "—"}</b>`;
+  $("#netHint").innerHTML = `每完成一次低買高賣，扣掉來回手續費（${S.mk === "spot" ? "現貨 0.05%" : "合約掛單 0.02%"} × 2）後賺多少。數值越小，格子越多、成交越頻繁。<br>建議上限＝ATR% 的一半扣掉手續費：ATR% 是平均值，每根 K 線的波動有大有小，格子設小一點，波動小的時候也能成交。<br>利潤率跟派網一樣無條件捨去到小數兩位。利潤率很小時，好幾種格數會顯示相同的 %，到派網請照參數卡的「格數」填寫。`;
+  $("#dirRow").hidden = S.mk !== "perp"; $("#levRow").hidden = S.mk !== "perp";
+
+  const g = calc(c);
+  const pv = x => String(Number(x.toPrecision(6)));
+  if (document.activeElement !== $("#rL")) $("#rL").value = pv(g.L);
+  if (document.activeElement !== $("#rU")) $("#rU").value = pv(g.U);
+  $("#rangeReset").hidden = !g.manual;
+  $("#rangeState").hidden = !g.manual;
+  if (g.manual) $("#rangeState").textContent = `已手動調整。觀測範圍的最高、最低價是 ${fp(g.hiX)}、${fp(g.loX)}。`;
+  $("#netOut").textContent = `→ 實際 ${tr2(g.netLo)}%・${g.n} 格`;
+  if (S.mk === "perp"){
+    const sd = suggestDir(c);
+    $("#dirNote").textContent = S.dir === "auto"
+      ? `目前採用：${DIRN[g.dir]}。近 30 根 K 線${chg30(c) >= 0 ? "上漲" : "下跌"} ${Math.abs(chg30(c)).toFixed(1)}%` + (d.er < 0.3 ? "，但 ER 偏低、行情偏震盪，這個方向只能當埋伏參考。" : "。")
+      : `系統建議：${DIRN[sd]}（你已手動改為${DIRN[S.dir]}）`;
+    $("#lev").value = S.lev; $("#levOut").textContent = S.lev + "x";
+    $("#levHint").innerHTML = `只用來試算交易額和每格數量。槓桿越高，強平（爆倉）風險越高；在派網選好槓桿後會顯示預估強平價，務必確認它落在網格區間「外」，不符合就調低槓桿。`;
+  }
+  $("#chTitle").textContent = `${TF[S.tf].name}・近 ${$("#chart").clientWidth < 600 ? 60 : d.k.length} 根・建議網格 ${g.n} 格`;
+  $("#chart").innerHTML = candleChart(c, g);
+  $("#legend").innerHTML = `<span><i style="border-color:var(--accent)"></i>網格上下限</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>MA50</span><span>空心 K 棒＝收漲，實心＝收跌</span>`;
+  $("#atrChart").innerHTML = atrChart(c);
+  $("#atrCap").textContent = "綠色帶＝篩選區間";
+
+  // param card
+  const pair = S.mk === "spot" ? `${c.sym}/USDT` : `${c.sym}/USDT 永續`;
+  const netTxt = tr2(g.netLo) + "%";
+  const rows = [
+    ["交易對", pair, true],
+    ["機器人", S.mk === "spot" ? "現貨網格" : `合約網格・${DIRN[g.dir]}`, true],
+    ["價格下限", fp(g.L)], ["價格上限", fp(g.U)],
+    ["網格數量", g.n], ["網格模式", "等比", true],
+    ["每格淨利（扣費後）", netTxt],
+    ["投資額", S.cap.toLocaleString() + " USDT"]
+  ];
+  if (S.mk === "perp"){
+    rows.push(["槓桿", g.lev + "x"]);
+    rows.push(["交易額（投資額 × 槓桿）", g.notional.toLocaleString(undefined, {maximumFractionDigits:2}) + " USDT"]);
+  }
+  const qd = q => g.step ? q.toFixed(Math.max(0, Math.round(-Math.log10(g.step)))) : fp(q);
+  rows.push(["每格數量", g.qty > 0 ? `${qd(g.qty)} ${esc(c.sym)}` : `約 ${g.qtyRaw.toPrecision(2)} ${esc(c.sym)}（以派網為準）`]);
+  rows.push(["每格金額（下限格～上限格）", `${g.amtLo.toFixed(2)}～${g.amtHi.toFixed(2)} USDT`]);
+  rows.push(["每成交一格約賺", `${fmtU(g.profLo)}～${fmtU(g.profHi)} USDT`]);
+  $("#pdl").innerHTML = rows.map(([k, v, t]) => `<dt>${k}</dt><dd class="${t?"txt":""}">${v}</dd>`).join("");
+  S._card = rows.map(([k, v]) => `${k}：${v}`).join("\n");
+  S._g = g;
+
+  // warnings
+  const w = [];
+  if (r.length) w.push(["w", `這個幣沒有通過目前的篩選（${r.map(x=>x[1]).join("、")}），開網格前要多想一下。`]);
+  if (g.ratio > 0.5) w.push(["b", `單格利潤率（扣費前）${pct(g.gross)} 超過 ATR% 的一半（${pct(d.atrPct/2)}），波動小的日子可能不會成交。調低單格利潤率。`]);
+  {
+    const pp = Math.round(g.pos*100), side = S.mk === "spot" ? "long" : g.dir;
+    if (g.pos < 0 || g.pos > 1) w.push(["b", `現價 ${fp(g.P)} 不在網格區間內，機器人一開就在區間外，請調整上下限。`]);
+    else if (g.pos > 0.8) w.push([side === "short" ? "w" : "b", `現價位在區間 ${pp}% 的位置，貼近上限。` + (side === "short" ? "做空網格往上的空間小，價格再漲一點就會出網。" : `${S.mk === "spot" ? "現貨" : "做多"}網格往上可賣的格子少，價格再漲一點就會出網。可以調整上下限或觀測範圍，或等價格回到區間中段再開。`)]);
+    else if (g.pos < 0.2) w.push([side === "long" ? "w" : "b", `現價位在區間 ${pp}% 的位置，貼近下限。` + (side === "long" ? `${S.mk === "spot" ? "現貨" : "做多"}網格往下的空間小，價格再跌一點就會出網。` : "做空網格往下可買回的格子少，價格再跌一點就會出網。可以調整上下限或觀測範圍，或等價格回到區間中段再開。")]);
+  }
+  if (S.mk === "spot"){
+    if (d.er >= 0.3 && chg30(c) < 0) w.push(["b", `近 30 根下跌 ${Math.abs(chg30(c)).toFixed(1)}%，有明顯方向。現貨網格只能做多，會邊跌邊買、容易被套，先看清楚線圖再決定。`]);
+    if (d.er >= 0.3 && chg30(c) >= 0) w.push(["w", `近 30 根上漲 ${chg30(c).toFixed(1)}%，有明顯方向。現貨網格會邊漲邊賣，獲利可能不如直接持有。`]);
+  } else {
+    if (g.dir === "neutral") w.push(["b", "中性網格上下兩側都有爆倉風險，不建議新手使用。"]);
+    if (g.dir !== "neutral" && g.dir !== suggestDir(c)) w.push(["w", `你選的方向和指標建議（${DIRN[suggestDir(c)]}）不同。`]);
+    w.push(["w", "合約另有資金費率，通常每 8 小時結算一次，長時間持倉要算進成本。"]);
+  }
+  if (g.n > 1000) w.push(["b", `格數 ${g.n} 格，超過派網上限 1000 格。請調高單格利潤率或縮小網格區間。`]);
+  if (g.step){
+    const qd2 = q => q.toFixed(Math.max(0, Math.round(-Math.log10(g.step))));
+    if (g.qty > 0 && g.util < 0.9) w.push(["w", `每格數量會依派網最小單位 ${qd2(g.step)} ${esc(c.sym)} 無條件捨去（理論 ${g.qtyRaw.toPrecision(3)}，實際 ${qd2(g.qty)}），只用到 ${Math.round(g.util*100)}% 的${S.mk === "perp" ? "交易額" : "投資額"}。投資額加到約 ${Math.ceil(g.nextInv*100)/100} USDT，每格就會變成 ${qd2(g.qty + g.step)} ${esc(c.sym)}。`]);
+  }
+  if (!w.some(x => x[0] === "b")) w.unshift(["g", `每成交一格約賺 ${fmtU(g.profLo)}～${fmtU(g.profHi)} USDT（越靠近上限的格子賺越多），參數在合理範圍內。`]);
+  $("#warns").innerHTML = w.map(([t, s]) => `<li class="${t}">${s}</li>`).join("");
+  syncPop();
+}
+
+// ---------- step 3 ----------
+function checklistItems(c, g){
+  const d = c.tf[S.tf];
+  const items = [
+    {id:"chart", t:"看過線圖，趨勢適合這種網格", s: (S.mk === "spot" ? "現貨網格只能做多，避開明顯下跌的走勢。" : "網格方向和近期走勢一致。") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。"},
+    {id:"price", t:"現價在網格區間中段", s:`現價位於區間 ${Math.round(g.pos*100)}% 的位置，太靠邊界容易一開就出網。`, auto: g.pos > 0.2 && g.pos < 0.8},
+    {id:"half", t:"單格利潤率低於 ATR% 的一半", s:`目前單格 ${pct(g.gross)}，ATR% 的一半是 ${pct(d.atrPct/2)}。`, auto: g.ratio <= 0.5},
+  ];
+  if (S.mk === "perp") items.push({id:"lev", t:"派網顯示的預估強平價在網格區間外", s: g.dir === "long" ? `做多：強平價要低於下限 ${fp(g.L)}。不符合就降低槓桿，或追加保證金。` : g.dir === "short" ? `做空：強平價要高於上限 ${fp(g.U)}。不符合就降低槓桿，或追加保證金。` : `中性：下方強平價要低於 ${fp(g.L)}、上方要高於 ${fp(g.U)}。不符合就降低槓桿，或追加保證金。`});
+  items.push(S.mk === "spot"
+    ? {id:"size", t:"這筆資金被套住也能接受", s:"現貨網格不會爆倉，但價格跌破下限後會全部變成幣、帳面虧損。確認這筆錢套住一段時間也不影響生活。"}
+    : {id:"size", t:"單筆最大虧損在可承受範圍內", s:"單筆最大虧損建議控制在可投資本金的 0.5%～1%。最簡單的做法：每次開單的投資額（保證金）就抓可投資本金的 0.5%～1%，就算爆倉，虧損也不會超出範圍。"});
+  return items;
+}
+function ckKey(){ return `gridsop:${S.sym}:${S.mk}:${S.tf}`; }
+function loadCk(){ try { return JSON.parse(localStorage.getItem(ckKey()) || "{}"); } catch(e){ return {}; } }
+function saveCk(o){ try { localStorage.setItem(ckKey(), JSON.stringify(o)); } catch(e){} }
+function renderCheck(){
+  const c = curCoin();
+  $("#s3empty").hidden = !!c; $("#s3body").hidden = !c;
+  if (!c) return;
+  const g = calc(c), items = checklistItems(c, g), saved = loadCk();
+  $("#s3lede").innerHTML = `<b>${esc(c.sym)}</b>・${S.mk==="spot"?"現貨網格":"合約網格（"+DIRN[g.dir]+"）"}・${fp(g.L)} – ${fp(g.U)}・${g.n} 格。有標籤的項目由系統依數據判斷，其餘請自己確認後打勾。`;
+  $("#clist").innerHTML = items.map(it => {
+    const auto = it.auto !== undefined, on = auto ? it.auto : !!saved[it.id];
+    const badge = auto ? `<span class="tag ${it.auto?"ok":"no"} auto">${it.auto?"系統確認":"未達標"}</span>` : "";
+    return `<li class="${on?"done":""}"><input type="checkbox" id="ck-${it.id}" data-id="${it.id}" ${on?"checked":""} ${auto?"disabled":""}>
+      <label for="ck-${it.id}"><b>${it.t}</b><span>${it.s}</span></label>${badge}</li>`;
+  }).join("");
+  const done = items.filter(it => it.auto !== undefined ? it.auto : saved[it.id]).length;
+  $("#progN").textContent = `${done} / ${items.length}`;
+  $("#progBar").style.width = (done/items.length*100) + "%";
+  const go = $("#go");
+  if (done === items.length){ go.className = "go ready"; go.textContent = "全部確認完成，可以到派網建立機器人了。"; }
+  else {
+    const autoFail = items.filter(it => it.auto === false);
+    go.className = "go wait";
+    go.textContent = autoFail.length ? `有 ${autoFail.length} 項數據沒達標，回第 2 步調整參數或換一個幣。` : `還有 ${items.length - done} 項沒確認。`;
+  }
+}
+
+// ---------- wiring ----------
+function setStep(n){
+  S.step = n;
+  $$("nav.steps [role=tab]").forEach(b => b.setAttribute("aria-selected", +b.dataset.step === n));
+  [1,2,3].forEach(i => $("#s"+i).hidden = i !== n);
+  render();
+  window.scrollTo({top:0});
+}
+function render(){
+  $$("[data-tf]").forEach(b => b.setAttribute("aria-pressed", b.dataset.tf === S.tf));
+  $$("[data-mk]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mk === S.mk));
+  $("#picked").textContent = S.sym ? `已選：${S.sym}・${S.mk==="spot"?"現貨":"合約"}・${TF[S.tf].short}` : "";
+  $("#showFail").checked = S.showFail;
+  if (S.step === 1) renderTable();
+  if (S.step === 2) renderCoin();
+  if (S.step === 3) renderCheck();
+  syncPop();
+}
+function pick(sym){ S.sym = sym; S.net = null; S.rL = S.rU = null; setStep(2); }
+
+$$("[data-tf]").forEach(b => b.onclick = () => { S.tf = b.dataset.tf; S.net = null; S.rL = S.rU = null; S.look = Math.min(S.look, 120); render(); });
+$$("[data-mk]").forEach(b => b.onclick = () => { S.mk = b.dataset.mk; S.net = null; S.lev = 1; render(); });
+$$("nav.steps [role=tab]").forEach(b => b.onclick = () => setStep(+b.dataset.step));
+$$("[data-goto]").forEach(b => b.onclick = () => setStep(+b.dataset.goto));
+$("#vol").oninput = e => { S.f[S.tf].vol = +e.target.value; renderTable(); };
+$("#atrMin").oninput = e => { const f = S.f[S.tf]; f.atrMin = Math.min(+e.target.value, f.atrMax - 0.1); renderTable(); };
+$("#atrMax").oninput = e => { const f = S.f[S.tf]; f.atrMax = Math.max(+e.target.value, f.atrMin + 0.1); renderTable(); };
+$("#er").oninput = e => { S.f[S.tf].er = +e.target.value; renderTable(); };
+$("#erLo").oninput = e => { const f = S.f[S.tf]; f.erLo = Math.min(+e.target.value, +(f.erHi - 0.05).toFixed(2)); renderTable(); };
+$("#erHi").oninput = e => { const f = S.f[S.tf]; f.erHi = Math.max(+e.target.value, +(f.erLo + 0.05).toFixed(2)); renderTable(); };
+$("#showFail").onchange = e => { S.showFail = e.target.checked; renderTable(); };
+$("#resetF").onclick = () => { S.f[S.tf] = {...DEF[S.tf]}; S.sort = {key:null, dir:1}; renderTable(); };
+$$("thead th button").forEach(b => b.onclick = () => {
+  const k = b.dataset.sort;
+  S.sort = S.sort.key === k ? {key:k, dir:-S.sort.dir} : {key:k, dir: (k==="rank"||k==="sym"||k==="er") ? 1 : -1};
+  renderTable();
+});
+$("#tbody").onclick = e => { const tr = e.target.closest("tr[data-sym]"); if (tr) pick(tr.dataset.sym); };
+$("#tbody").onkeydown = e => { if (e.key === "Enter"){ const tr = e.target.closest("tr[data-sym]"); if (tr) pick(tr.dataset.sym); } };
+$("#cSel").onchange = e => { S.sym = e.target.value; S.net = null; S.rL = S.rU = null; renderCoin(); render(); };
+$("#cap").oninput = e => { const v = +e.target.value; if (v > 0){ S.cap = v; renderCoin(); } };
+$$("#dirRow [data-dir]").forEach(b => b.onclick = () => { S.dir = b.dataset.dir; renderCoin(); });
+$("#chart").addEventListener("pointermove", crosshair);
+$("#chart").addEventListener("pointerdown", crosshair);
+$("#chart").addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hideXh(); });
+$("#atrChart").addEventListener("pointermove", crosshair);
+$("#atrChart").addEventListener("pointerdown", crosshair);
+$("#atrChart").addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hideXh(); });
+$("#look").oninput = e => { S.look = +e.target.value; S.rL = S.rU = null; renderCoin(); };
+function rangeInput(){
+  const l = parseFloat($("#rL").value), u = parseFloat($("#rU").value);
+  if (l > 0 && u > l){ S.rL = l; S.rU = u; renderCoin(); }
+}
+$("#rL").oninput = rangeInput; $("#rU").oninput = rangeInput;
+$("#rL").onchange = $("#rU").onchange = () => { const l = parseFloat($("#rL").value), u = parseFloat($("#rU").value); if (!(l > 0 && u > l)) renderCoin(); };
+$("#rL").onblur = $("#rU").onblur = () => setTimeout(renderCoin, 0);
+$("#lev").oninput = e => { S.lev = +e.target.value; renderCoin(); };
+$("#rangeReset").onclick = () => { S.rL = S.rU = null; renderCoin(); };
+$("#net").oninput = e => { const v = parseFloat(e.target.value); if (v >= 0.05 && v <= 100){ S.net = v; renderCoin(); } };
+$("#net").onchange = e => { const v = parseFloat(e.target.value); if (!(v >= 0.05 && v <= 100)) e.target.value = S.net; };
+$("#clist").onchange = e => { const id = e.target.dataset.id; if (!id) return; const o = loadCk(); o[id] = e.target.checked; saveCk(o); renderCheck(); };
+$("#copy").onclick = async () => {
+  const btn = $("#copy");
+  try { await navigator.clipboard.writeText(S._card); btn.textContent = "已複製"; }
+  catch(e){
+    const ta = document.createElement("textarea"); ta.value = S._card; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); btn.textContent = "已複製"; } catch(_){ btn.textContent = "請手動選取"; }
+    ta.remove();
+  }
+  setTimeout(() => btn.textContent = "複製", 1600);
+};
+
+// header stamp + excluded
+(() => {
+  const t = new Date(DATA.updated);
+  $("#stamp").textContent = "資料時間 " + t.toLocaleString("zh-TW", {timeZone:"Asia/Taipei", year:"numeric", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
+  $("#exSum").textContent = `前 100 大中已排除 ${DATA.excluded.length} 個（穩定幣、派網未上架、K 線不足）`;
+  $("#exList").innerHTML = DATA.excluded.sort((a,b)=>a.rank-b.rank).map(e => `<li>#${e.rank} ${esc(e.sym)}：${esc(e.reason)}</li>`).join("");
+})();
+// ---------- 說明 ⓘ 浮動窗與「顯示說明」開關 ----------
+let popFor = null;
+function closePop(){ const p = $("#pop"); p.hidden = true; if (popFor) popFor.setAttribute("aria-expanded", "false"); popFor = null; }
+function placePop(btn){
+  const p = $("#pop"), r = btn.getBoundingClientRect(), w = p.offsetWidth, vw = document.documentElement.clientWidth;
+  let left = r.left + window.scrollX - 12;
+  left = Math.min(left, window.scrollX + vw - w - 16); left = Math.max(window.scrollX + 16, left);
+  p.style.left = left + "px"; p.style.top = (r.bottom + window.scrollY + 8) + "px";
+}
+function syncPop(){
+  if (!popFor) return;
+  if (!document.body.contains(popFor) || popFor.offsetParent === null){ closePop(); return; }
+  const src = document.getElementById(popFor.dataset.help);
+  if (src) $("#pop").innerHTML = src.innerHTML;
+  placePop(popFor);
+}
+function openPop(btn){
+  if (popFor === btn){ closePop(); return; }
+  closePop();
+  const src = document.getElementById(btn.dataset.help); if (!src) return;
+  const p = $("#pop"); p.innerHTML = src.innerHTML; p.hidden = false;
+  popFor = btn; btn.setAttribute("aria-expanded", "true");
+  placePop(btn);
+  hideHelpTip();
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("button.ib[data-help]");
+  if (b){ e.preventDefault(); e.stopPropagation(); openPop(b); return; }
+  if (popFor && !e.target.closest("#pop")) closePop();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePop(); });
+const HKEY = "gridsop:help", TKEY = "gridsop:helpTipSeen";
+function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function lsSet(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function setHelp(on){
+  document.body.classList.toggle("show-help", on);
+  $("#helpSw").setAttribute("aria-pressed", on);
+  if (on) closePop();
+}
+function hideHelpTip(){ $("#helpTip").hidden = true; lsSet(TKEY, "1"); }
+setHelp(lsGet(HKEY) === "1");
+$("#helpTip").hidden = !!lsGet(TKEY);
+$("#helpTipX").onclick = hideHelpTip;
+$("#helpSw").onclick = () => { const on = !document.body.classList.contains("show-help"); setHelp(on); lsSet(HKEY, on ? "1" : "0"); hideHelpTip(); };
+window.addEventListener("scroll", () => { if (popFor) placePop(popFor); }, {passive:true});
+
+let _rt; window.addEventListener("resize", () => { clearTimeout(_rt); _rt = setTimeout(() => { if (S.step === 2) renderCoin(); }, 150); });
+setStep(1);
+</script>
+</body>
+</html>
