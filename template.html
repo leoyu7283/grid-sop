@@ -47,6 +47,9 @@ header.top{border-bottom:1px solid var(--line);background:var(--panel)}
 .brand h1{font-size:22px;font-weight:900;letter-spacing:.02em;margin:0;line-height:1.2}
 .brand .stamp{font-size:13px;color:var(--muted)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--paper)}
+.chhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;margin-bottom:10px}
+.chhead h3{margin:0}
+.seg.sm button{padding:3px 11px;font-size:13px}
 .seg button{border:0;background:transparent;padding:6px 14px;cursor:pointer;font-size:14px;color:var(--muted)}
 .seg button.locked{opacity:.4;cursor:not-allowed;text-decoration:line-through;text-decoration-color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel);font-weight:700}
@@ -336,7 +339,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
       <div class="stats" id="cStats"></div>
       <div class="two">
         <div class="card chartbox">
-          <h3 id="chTitle"></h3>
+          <div class="chhead"><h3 id="chTitle"></h3><div class="ctrl" id="showCtrl">顯示範圍<div class="seg sm" id="showSeg" role="group" aria-label="線圖顯示範圍"></div></div></div>
           <div id="chartWrap"><div id="chart"></div><div id="tip" hidden></div></div>
           <div class="legend" id="legend"></div>
           <div class="atrbox">
@@ -448,7 +451,7 @@ const curCoin = () => { const c = byS[S.sym]; return c && c.tf[S.tf] ? c : null;
 const S = {
   tf:"1D", mk:"spot", step:1, sort:{key:null, dir:1}, showFail:false,
   f:{ "4H":{...DEF["4H"]}, "1D":{...DEF["1D"]}, "1W":{...DEF["1W"]} },
-  sym:null, cap:1000, dir:"auto", look:30, net:null, rL:null, rU:null, lev:1
+  sym:null, cap:1000, dir:"auto", look:30, show:120, net:null, rL:null, rU:null, lev:1
 };
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -470,11 +473,11 @@ function fv(x){
 const fmtU = x => Math.abs(x) >= 1 ? x.toFixed(2) : Math.abs(x) >= 0.01 ? x.toFixed(3) : x.toPrecision(2);
 const tr2 = x => (Math.floor(x*100 + 1e-9)/100).toFixed(2);
 const pct = (x, d=2) => (x==null||!isFinite(x)) ? "—" : x.toFixed(d) + "%";
-function tlabel(t){
+function tlabel(t, yr){
   const d = new Date(t*1000);
   const o = {timeZone:"Asia/Taipei", month:"numeric", day:"numeric"};
   if (S.tf === "4H") o.hour = "2-digit";
-  if (S.tf === "1W"){ o.year = "2-digit"; }
+  if (S.tf === "1W" || yr){ o.year = "2-digit"; }
   return d.toLocaleString("zh-TW", o).replace("時","").replace(" ", " ");
 }
 const esc = s => String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
@@ -609,7 +612,9 @@ function calc(c){
 // ---------- charts ----------
 function candleChart(c, g){
   const d = c.tf[S.tf], W = Math.max(320, Math.round($("#chart").clientWidth) || 800), H = W < 600 ? 300 : 360, pr = 70, pt = 10, pb = 26, pl = 4;
-  const k = W < 600 ? d.k.slice(-Math.max(60, S.look)) : d.k;
+  const N = d.k.length, eff = Math.min(S.show, N);
+  const nShow = Math.min(N, (W < 600 && eff === 120) ? Math.max(60, S.look) : Math.max(eff, S.look));
+  const k = d.k.slice(-nShow), yr = nShow * TF[S.tf].days > 200;
   let lo = Math.min(...k.map(x => x[3]), g.L), hi = Math.max(...k.map(x => x[2]), g.U);
   const padY = (hi-lo)*0.04; lo -= padY; hi += padY;
   const y = v => pt + (hi - v)/(hi - lo)*(H - pt - pb);
@@ -617,8 +622,8 @@ function candleChart(c, g){
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.sym)} K 線與建議網格">`;
   const lb = Math.max(0, k.length - S.look), lbx = pl + cw*lb;
   s += `<rect x="${lbx}" y="${pt}" width="${W-pr-lbx}" height="${H-pt-pb}" fill="var(--muted)" fill-opacity=".10"/>
-    <text x="${lbx+4}" y="${H-pb-6}" font-size="11.5" fill="var(--muted)">觀測範圍 ${S.look} 根</text>`;
-  S._cg = {k, W, H, pl, pr, pt, pb, cw, lo, hi};
+` + (W-pr-lbx >= 96 ? `<text x="${lbx+4}" y="${H-pb-6}" font-size="11.5" fill="var(--muted)">觀測範圍 ${S.look} 根</text>` : "");
+  S._cg = {k, W, H, pl, pr, pt, pb, cw, lo, hi, yr, dense: cw < 4};
   // band + grid ladder
   s += `<rect x="${pl}" y="${y(g.U)}" width="${W-pr-pl}" height="${y(g.L)-y(g.U)}" fill="var(--band)"/>`;
   const step = Math.ceil(g.levels.length/90);
@@ -627,8 +632,8 @@ function candleChart(c, g){
   k.forEach((b, i) => {
     const [t, o, h, l, cl] = b, up = cl >= o, X = x(i);
     const top = y(Math.max(o, cl)), bh = Math.max(1, Math.abs(y(o) - y(cl)));
-    s += `<line x1="${X}" x2="${X}" y1="${y(h)}" y2="${y(l)}" stroke="var(--ink)" stroke-width="1"/>`;
-    s += `<rect x="${X - cw*0.34}" y="${top}" width="${cw*0.68}" height="${bh}" fill="${up ? "var(--panel)" : "var(--ink)"}" stroke="var(--ink)" stroke-width="1"/>`;
+    s += `<line x1="${X}" x2="${X}" y1="${y(h)}" y2="${y(l)}" stroke="var(--ink)" stroke-width="${cw < 4 ? Math.max(1, cw*0.55).toFixed(2) : 1}"/>`;
+    if (cw >= 4) s += `<rect x="${X - cw*0.34}" y="${top}" width="${cw*0.68}" height="${bh}" fill="${up ? "var(--panel)" : "var(--ink)"}" stroke="var(--ink)" stroke-width="1"/>`;
   });
   // MA50
   const cls = d.k.map(b => b[4]), off = d.k.length - k.length; let pts = [];
@@ -636,20 +641,23 @@ function candleChart(c, g){
     for (let i = Math.max(49, off); i < cls.length; i++){ let sum = 0; for (let j = i-49; j <= i; j++) sum += cls[j]; pts.push(`${x(i-off).toFixed(1)},${y(sum/50).toFixed(1)}`); }
     s += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 3"/>`;
   }
-  const hl = (v, col, label, dash) => {
-    if (v == null || v < lo || v > hi) return "";
-    return `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="${col}" stroke-width="1.6" ${dash?`stroke-dasharray="${dash}"`:""}/>
-      <text x="${W-pr+6}" y="${y(v)+4}" font-size="12" fill="${col}" font-family="var(--num)">${label}</text>`;
-  };
-  s += hl(g.U, "var(--accent)", "上 " + fp(g.U));
-  s += hl(g.L, "var(--accent)", "下 " + fp(g.L));
-  // price tag
   const py = y(g.P);
+  // 上下限標籤貼近現價標籤時自動錯開
+  const hl = (v, col, label, side) => {
+    if (v == null || v < lo || v > hi) return "";
+    let ly = y(v) + 4;
+    if (Math.abs(y(v) - py) < 20) ly = side === "U" ? Math.min(ly, py - 14) : Math.max(ly, py + 24);
+    return `<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" stroke="${col}" stroke-width="1.6"/>
+      <text x="${W-pr+6}" y="${ly}" font-size="12" fill="${col}" font-family="var(--num)">${label}</text>`;
+  };
+  s += hl(g.U, "var(--accent)", "上 " + fp(g.U), "U");
+  s += hl(g.L, "var(--accent)", "下 " + fp(g.L), "L");
+  // price tag
   s += `<line x1="${pl}" x2="${W-pr}" y1="${py}" y2="${py}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="1 3"/>
     <rect x="${W-pr+2}" y="${py-10}" width="${pr-4}" height="20" rx="3" fill="var(--ink)"/>
     <text x="${W-pr+6}" y="${py+4}" font-size="12" fill="var(--panel)" font-family="var(--num)" font-weight="600">${fp(g.P)}</text>`;
   // x labels
-  (W < 600 ? [0, 30, k.length-1] : [0, 30, 60, 90, k.length-1]).forEach(i => { if (k[i]) s += `<text x="${x(i)}" y="${H-8}" font-size="11.5" fill="var(--muted)" text-anchor="${i===0?"start":i===k.length-1?"end":"middle"}">${tlabel(k[i][0])}</text>`; });
+  (W < 600 ? [0, .5, 1] : [0, .25, .5, .75, 1]).map(f => Math.round(f*(k.length-1))).forEach(i => { if (k[i]) s += `<text x="${x(i)}" y="${H-8}" font-size="11.5" fill="var(--muted)" text-anchor="${i===0?"start":i===k.length-1?"end":"middle"}">${tlabel(k[i][0], yr)}</text>`; });
   s += `<g id="xh" style="display:none;pointer-events:none">
     <line id="xhV" y1="${pt}" y2="${H-pb}" stroke="var(--ink)" stroke-opacity=".5" stroke-dasharray="3 3"/>
     <line id="xhH" x1="${pl}" x2="${W-pr}" stroke="var(--ink)" stroke-opacity=".5" stroke-dasharray="3 3"/>
@@ -685,7 +693,7 @@ function crosshair(e){
     }
   }
   const tip = $("#tip"), chg = (b[4]/b[1]-1)*100;
-  tip.innerHTML = `<b>${tlabel(b[0])}</b><span>開 ${fp(b[1])}</span><span>高 ${fp(b[2])}</span><span>低 ${fp(b[3])}</span><span>收 ${fp(b[4])}</span><span class="${chg>=0?"up":"dn"}">${chg>=0?"+":""}${chg.toFixed(2)}%</span>` + (av != null ? `<span class="atr">ATR% ${av.toFixed(2)}%</span>` : "");
+  tip.innerHTML = `<b>${tlabel(b[0], g.yr)}</b><span>開 ${fp(b[1])}</span><span>高 ${fp(b[2])}</span><span>低 ${fp(b[3])}</span><span>收 ${fp(b[4])}</span><span class="${chg>=0?"up":"dn"}">${chg>=0?"+":""}${chg.toFixed(2)}%</span>` + (av != null ? `<span class="atr">ATR% ${av.toFixed(2)}%</span>` : "");
   tip.hidden = false;
   const box = $("#chart").getBoundingClientRect(), px = X/sc, left = px > box.width/2 ? px - tip.offsetWidth - 12 : px + 12;
   tip.style.left = Math.max(0, left) + "px";
@@ -737,11 +745,14 @@ function renderCoin(){
     ["ADX(14)", d.adx != null ? d.adx.toFixed(1) : "—", adxTxt],
     ["MA50", fp(d.ma50), maTxt],
     [`近 ${S.look} 根高／低`, `${fp(g0.hiX)}`, `低點 ${fp(g0.loX)}`]
-  ].map(([k, v, h]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join("");
+  ].concat(c.yr ? [[c.yr.days >= 365 ? "近 1 年高／低" : `上市以來高／低（${c.yr.days} 天）`, fp(c.yr.hi), `低點 ${fp(c.yr.lo)}`]] : []).map(([k, v, h]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join("");
 
   // form state
   if (document.activeElement !== $("#cap")) $("#cap").value = S.cap;
   $$("#dirRow [data-dir]").forEach(b => b.setAttribute("aria-pressed", b.dataset.dir === S.dir));
+  const lookMax = Math.max(10, Math.floor(Math.min(d.k.length, 500)/5)*5);
+  if (S.look > lookMax) S.look = lookMax;
+  $("#look").max = lookMax;
   $("#look").value = S.look; $("#lookOut").textContent = `近 ${S.look} 根 K 線`;
   $("#lookHint").textContent = `取這段期間（${spanText(S.look)}）的最高價和最低價，帶入下方的網格區間。線圖上灰色底色就是觀測範圍。`;
   if (S.net == null) S.net = defaultNet(c);
@@ -767,9 +778,15 @@ function renderCoin(){
     $("#lev").value = S.lev; $("#levOut").textContent = S.lev + "x";
     $("#levHint").innerHTML = `只用來試算交易額和每格數量。槓桿越高，強平（爆倉）風險越高；在派網選好槓桿後會顯示預估強平價，務必確認它落在網格區間「外」，不符合就調低槓桿。`;
   }
-  $("#chTitle").textContent = `${TF[S.tf].name}・近 ${$("#chart").clientWidth < 600 ? 60 : d.k.length} 根・建議網格 ${g.n} 格`;
   $("#chart").innerHTML = candleChart(c, g);
-  $("#legend").innerHTML = `<span><i style="border-color:var(--accent)"></i>網格上下限</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>MA50</span><span>空心 K 棒＝收漲，實心＝收跌</span>`;
+  $("#chTitle").textContent = `${TF[S.tf].name}・近 ${S._cg.k.length} 根（${spanText(S._cg.k.length)}）・建議網格 ${g.n} 格`;
+  {
+    const N = d.k.length, std = [120, 250, 500], opts = std.filter(n => n < N); opts.push(N);
+    const eff = Math.min(S.show, N), cur = opts.includes(eff) ? eff : opts.filter(n => n <= eff).pop() || opts[0];
+    $("#showCtrl").hidden = opts.length < 2;
+    $("#showSeg").innerHTML = opts.map(n => `<button type="button" data-n="${n}" aria-pressed="${n === cur}">${n === N && !std.includes(n) ? "全部 " + n : n} 根</button>`).join("");
+  }
+  $("#legend").innerHTML = `<span><i style="border-color:var(--accent)"></i>網格上下限</span><span><i style="border-color:var(--muted);border-top-style:dashed"></i>MA50</span><span>${S._cg.dense ? "顯示範圍較大時，K 線簡化為高低線" : "空心 K 棒＝收漲，實心＝收跌"}</span>`;
   $("#atrChart").innerHTML = atrChart(c);
   $("#atrCap").textContent = "綠色帶＝篩選區間";
 
@@ -913,6 +930,7 @@ $("#chart").addEventListener("pointerleave", e => { if (e.pointerType === "mouse
 $("#atrChart").addEventListener("pointermove", crosshair);
 $("#atrChart").addEventListener("pointerdown", crosshair);
 $("#atrChart").addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hideXh(); });
+$("#showSeg").onclick = e => { const b = e.target.closest("button[data-n]"); if (b){ S.show = +b.dataset.n; renderCoin(); } };
 $("#look").oninput = e => { S.look = +e.target.value; S.rL = S.rU = null; renderCoin(); };
 function rangeInput(){
   const l = parseFloat($("#rL").value), u = parseFloat($("#rU").value);

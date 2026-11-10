@@ -9,7 +9,7 @@ ATR_N = 30   # ATR 期數
 ER_N = 30    # ER 期數
 ADX_N = 14   # ADX 期數
 MIN_BARS = ER_N + 1          # 至少要有幾根 K 線才計算
-SHOW_BARS = 120              # 網頁線圖顯示幾根
+SHOW_BARS = 500              # 網頁線圖最多保留幾根（線圖可切換顯示 120／250／500 根）
 OUT = sys.argv[1] if len(sys.argv) > 1 else "data.json"
 
 S = requests.Session()
@@ -114,7 +114,7 @@ def parse(ks):
              "c": float(x["close"])} for x in ks]
 
 
-def fetch(sym, interval, limit=260):
+def fetch(sym, interval, limit=500):
     return parse(get("https://api.pionex.com/api/v1/market/klines",
                      {"symbol": sym, "interval": interval, "limit": limit})["data"]["klines"])
 
@@ -210,7 +210,9 @@ for c in cg:
             src_used = src; break
     if len(daily) < MIN_BARS:
         excluded.append({**base, "reason": f"上市不足 {MIN_BARS} 天"}); continue
-    entry["tf"]["1D"] = pack(daily[-400:])
+    entry["tf"]["1D"] = pack(daily)
+    yr = daily[-365:]
+    entry["yr"] = {"hi": sig(max(x["h"] for x in yr)), "lo": sig(min(x["l"] for x in yr)), "days": len(yr)}
     weekly = to_weekly(daily)
     if len(weekly) >= MIN_BARS:
         entry["tf"]["1W"] = pack(weekly)
