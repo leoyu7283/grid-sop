@@ -385,7 +385,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
               <div class="seg" role="group" aria-label="網格模式">
                 <button aria-pressed="true">等比</button><button class="locked" disabled title="此處固定用等比計算">等差</button>
               </div>
-              <small class="help" id="h-mode">這裡固定用等比網格計算：等比網格每格利潤率一致，最適合用「單格利潤率」找出合適的格數。確定格數後，到派網開單時可以自行選擇等差或等比。</small>
+              <small class="help" id="h-mode"><span class="hp">等差網格的單格利潤率是一個範圍，等比網格則是固定值，比較適合用來反推格數。所以這裡固定用等比網格計算，「等差」不能選。</span><span class="hp">格數確定後，到派網開單時仍然可以自行選擇等差或等比。</span></small>
             </div>
             <div class="row" id="levRow">
               <label for="lev"><span>槓桿（試算用）<button type="button" class="ib" data-help="levHint" aria-label="說明">i</button></span> <span class="num" id="levOut"></span></label>
@@ -776,7 +776,7 @@ function renderCoin(){
       ? `目前採用：${DIRN[g.dir]}。近 30 根 K 線${chg30(c) >= 0 ? "上漲" : "下跌"} ${Math.abs(chg30(c)).toFixed(1)}%` + (d.er < 0.3 ? "，但 ER 偏低、行情偏震盪，這個方向只能當埋伏參考。" : "。")
       : `系統建議：${DIRN[sd]}（你已手動改為${DIRN[S.dir]}）`;
     $("#lev").value = S.lev; $("#levOut").textContent = S.lev + "x";
-    $("#levHint").innerHTML = `只用來試算交易額和每格數量。槓桿越高，強平（爆倉）風險越高；在派網選好槓桿後會顯示預估強平價，務必確認它落在網格區間「外」，不符合就調低槓桿。`;
+    $("#levHint").innerHTML = `<span class="hp">這裡的槓桿只用來試算交易額和每格數量。槓桿越高，強平（爆倉）的風險越高。</span><span class="hp">實際開單時，在派網選好槓桿後會顯示預估強平價，務必確認它落在網格區間「外」；不符合的話，就調低槓桿或追加保證金。</span>`;
   }
   $("#chart").innerHTML = candleChart(c, g);
   $("#chTitle").textContent = `${TF[S.tf].name}・近 ${S._cg.k.length} 根（${spanText(S._cg.k.length)}）・建議網格 ${g.n} 格`;
@@ -820,8 +820,19 @@ function renderCoin(){
   {
     const pp = Math.round(g.pos*100), side = S.mk === "spot" ? "long" : g.dir;
     if (g.pos < 0 || g.pos > 1) w.push(["b", `現價 ${fp(g.P)} 不在網格區間內，機器人一開就在區間外，請調整上下限。`]);
-    else if (g.pos > 0.8) w.push([side === "short" ? "w" : "b", `現價位在區間 ${pp}% 的位置，貼近上限。` + (side === "short" ? "做空網格往上的空間小，價格再漲一點就會出網。" : `${S.mk === "spot" ? "現貨" : "做多"}網格往上可賣的格子少，價格再漲一點就會出網。可以調整上下限或觀測範圍，或等價格回到區間中段再開。`)]);
-    else if (g.pos < 0.2) w.push([side === "long" ? "w" : "b", `現價位在區間 ${pp}% 的位置，貼近下限。` + (side === "long" ? `${S.mk === "spot" ? "現貨" : "做多"}網格往下的空間小，價格再跌一點就會出網。` : "做空網格往下可買回的格子少，價格再跌一點就會出網。可以調整上下限或觀測範圍，或等價格回到區間中段再開。")]);
+    else if (g.pos > 0.8 || g.pos < 0.2){
+      const up = g.pos > 0.8, nm = S.mk === "spot" ? "現貨網格" : DIRN[side] + "網格";
+      const head = `現價在區間 ${pp}% 的位置，貼近${up ? "上限" : "下限"}。`;
+      const tail = `可以${up ? "調高上限" : "調低下限"}，或等價格回到區間中段再開。`;
+      if (side === "neutral")
+        w.push(["w", head + `中性網格${up ? "上方" : "下方"}的格子很少，價格再${up ? "漲" : "跌"}一點就會出網、停止運作。` + tail]);
+      else if ((side === "long") === up)
+        // 順向貼邊：部位小，出網時已獲利了結，只是網格閒置
+        w.push(["w", head + `${nm}往${up ? "上能賣出" : "下能買回"}的格子很少，價格再${up ? "漲" : "跌"}一點就會出網、停止運作。` + tail]);
+      else
+        // 逆向貼邊：一開單就接近滿倉，出網時帶著整筆部位虧損
+        w.push(["b", head + `${nm}一開單就會${side === "long" ? "買進大部分部位" : "持有大部分空單"}，價格再${up ? "漲" : "跌"}一點就會出網，並帶著整筆${side === "long" ? "部位" : "空單"}承受虧損。` + tail]);
+    }
   }
   if (S.mk === "spot"){
     if (d.er >= 0.3 && chg30(c) < 0) w.push(["b", `近 30 根下跌 ${Math.abs(chg30(c)).toFixed(1)}%，有明顯方向。現貨網格只能做多，會邊跌邊買、容易被套，先看清楚線圖再決定。`]);
@@ -829,7 +840,7 @@ function renderCoin(){
   } else {
     if (g.dir === "neutral") w.push(["b", "中性網格上下兩側都有爆倉風險，不建議新手使用。"]);
     if (g.dir !== "neutral" && g.dir !== suggestDir(c)) w.push(["w", `你選的方向和指標建議（${DIRN[suggestDir(c)]}）不同。`]);
-    w.push(["w", "合約另有資金費率，通常每 8 小時結算一次，長時間持倉要算進成本。"]);
+    w.push(["w", "合約另有資金費率，通常每 8 小時結算一次，可能是支出，也可能是收入。持倉時間長的話，記得把它算進成本。"]);
   }
   if (g.n > 1000) w.push(["b", `格數 ${g.n} 格，超過派網上限 1000 格。請調高單格利潤率或縮小網格區間。`]);
   if (g.step){
