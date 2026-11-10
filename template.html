@@ -759,7 +759,7 @@ function renderCoin(){
   if (document.activeElement !== $("#net")) $("#net").value = S.net;
   const mxN = maxNet(c);
   $("#netKey").innerHTML = `這個幣建議不超過 <b class="num">${mxN > 0 ? mxN.toFixed(2) + "%" : "—"}</b>`;
-  $("#netHint").innerHTML = `每完成一次低買高賣，扣掉來回手續費（${S.mk === "spot" ? "現貨 0.05%" : "合約掛單 0.02%"} × 2）後賺多少。數值越小，格子越多、成交越頻繁。<br>建議上限＝ATR% 的一半扣掉手續費：ATR% 是平均值，每根 K 線的波動有大有小，格子設小一點，波動小的時候也能成交。<br>利潤率跟派網一樣無條件捨去到小數兩位。利潤率很小時，好幾種格數會顯示相同的 %，到派網請照參數卡的「格數」填寫。`;
+  $("#netHint").innerHTML = `<span class="hp">每成交一格，扣掉來回手續費（${S.mk === "spot" ? "現貨 0.05%" : "合約掛單 0.02%"} × 2）後賺多少。</span><span class="hp">數值越大，格子越少、成交越少。<br>數值越小，格子越多、成交越頻繁。</span><span class="hp"><b>建議上限＝ATR% 的一半，再扣掉手續費</b><br>ATR% 是平均值，每根 K 線的波動有大有小。取一半，是為了讓波動較小的時候也刷得到格子。</span><span class="hp"><b>顯示方式比照派網</b><br>數值無條件捨去到小數第二位，所以相近的格數可能顯示同一個利潤率。到派網開單時，請直接填參數卡上的「格數」。</span>`;
   $("#dirRow").hidden = S.mk !== "perp"; $("#levRow").hidden = S.mk !== "perp";
 
   const g = calc(c);
