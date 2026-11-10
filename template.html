@@ -207,6 +207,11 @@ details.excluded ul{columns:3 220px;padding-left:18px;color:var(--muted);font-si
 .checklist label span{font-size:13px;color:var(--muted)}
 .checklist .auto{font-size:12px;margin-left:auto;flex:none}
 .checklist li.done label b{text-decoration:line-through;text-decoration-color:var(--muted);color:var(--muted)}
+.risknote{margin-top:14px;padding:14px 18px;background:var(--panel);border:1px dashed var(--line);border-radius:10px;font-size:13.5px;line-height:1.65;color:var(--muted)}
+.risknote b{color:var(--ink);font-weight:500}
+.risknote ul{margin:6px 0 0;padding-left:18px}
+.risknote li{margin-bottom:2px}
+.risknote a{color:var(--accent);white-space:nowrap}
 .progress{display:flex;align-items:center;gap:14px;margin:0 0 14px}
 .progress .bar{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
 .progress .bar i{display:block;height:100%;background:var(--good);transition:width .25s}
@@ -411,6 +416,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
       <p class="lede" id="s3lede"></p>
       <div class="progress"><span class="num" id="progN"></span><div class="bar"><i id="progBar"></i></div></div>
       <ul class="checklist" id="clist"></ul>
+      <div class="risknote" id="riskNote"></div>
       <div class="go wait" id="go"></div>
     </div>
   </section>
@@ -861,7 +867,6 @@ function checklistItems(c, g){
     {id:"half", t:"單格利潤率低於 ATR% 的一半", s:`目前單格 ${pct(g.gross)}，ATR% 的一半是 ${pct(d.atrPct/2)}。`, auto: g.ratio <= 0.5},
   ];
   if (S.mk === "perp") items.push({id:"lev", t:"派網顯示的預估強平價在網格區間外", s: g.dir === "long" ? `做多：強平價要低於下限 ${fp(g.L)}。不符合就降低槓桿，或追加保證金。` : g.dir === "short" ? `做空：強平價要高於上限 ${fp(g.U)}。不符合就降低槓桿，或追加保證金。` : `中性：下方強平價要低於 ${fp(g.L)}、上方要高於 ${fp(g.U)}。不符合就降低槓桿，或追加保證金。`});
-  if (S.mk === "spot") items.push({id:"size", t:"這筆資金被套住也能接受", s:"現貨網格不會爆倉，但價格跌破下限後會全部變成幣、帳面虧損。確認這筆錢套住一段時間也不影響生活。"});
   return items;
 }
 function ckKey(){ return `gridsop:${S.sym}:${S.mk}:${S.tf}`; }
@@ -879,6 +884,12 @@ function renderCheck(){
     return `<li class="${on?"done":""}"><input type="checkbox" id="ck-${it.id}" data-id="${it.id}" ${on?"checked":""} ${auto?"disabled":""}>
       <label for="ck-${it.id}"><b>${it.t}</b><span>${it.s}</span></label>${badge}</li>`;
   }).join("");
+  const ext = (url, txt) => `<a href="${url}" target="_blank" rel="noopener">${txt}</a>`;
+  $("#riskNote").innerHTML = S.mk === "spot"
+    ? `<b>倉位大小不在這份清單內。</b>現貨網格不會爆倉，但價格跌破下限（破網）後，資金會全部變成幣。投入的金額，請以套住一段時間也不影響生活為準。${ext("https://www.instagram.com/p/DXll4jlj9b7/?img_index=1", "現貨網格破網了怎麼辦？")}`
+    : `<b>風險控管不在這份清單內，請擇一掌握：</b><ul>
+        <li><b>像個持有者</b>：用低槓桿，讓強平價遠離網格區間。${ext("https://www.instagram.com/p/De00L2YD4DY/?img_index=1", "看教學")}</li>
+        <li><b>像個交易員</b>：控制倉位，單筆最大虧損抓在可投資本金的 0.5%～1%。${ext("https://www.instagram.com/p/DfMYagQj72z/?img_index=1", "看教學")}</li></ul>`;
   const done = items.filter(it => it.auto !== undefined ? it.auto : saved[it.id]).length;
   $("#progN").textContent = `${done} / ${items.length}`;
   $("#progBar").style.width = (done/items.length*100) + "%";
