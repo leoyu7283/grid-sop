@@ -2,7 +2,7 @@
 
 給學生用的網格交易選幣與參數試算工具（派網 Pionex）。
 
-- 網頁每 4 小時由 GitHub Actions 自動抓取 CoinGecko 前 100 大與派網 K 線，重新計算指標並部署到 GitHub Pages。
+- 網頁每小時由 GitHub Actions 自動抓取 CoinGecko 前 100 大與派網 K 線，重新計算指標並部署到 GitHub Pages。
 - 指標：ATR(30)、ER(30)、ADX(14)；週期：4 小時、日線、週線（由日線合成）。
 - 最新資料存在 `data` 分支（每次覆蓋，不累積歷史）。抓取失敗時，網頁沿用上一次成功的資料，頁面上方會顯示資料時間。
 
@@ -13,7 +13,7 @@
 | `build_data.py` | 抓資料、算指標，輸出 `data.json` |
 | `template.html` | 網頁版面與計算邏輯 |
 | `build_html.py` | 把 `data.json` 塞進模板，產生 `index.html` |
-| `.github/workflows/update.yml` | 排程：每 4 小時更新並部署 |
+| `.github/workflows/update.yml` | 排程：每小時更新並部署（GitHub 排程偶爾會延遲或略過） |
 
 ## 手動更新
 

@@ -71,8 +71,11 @@ body.show-help button.ib[data-help]{display:none}
 .state{color:var(--ink)!important}
 .pop{position:absolute;z-index:30;width:min(340px,calc(100vw - 32px));background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.6;color:var(--ink);box-shadow:0 8px 24px rgba(0,0,0,.14)}
 .pop[hidden]{display:none}
-.pop p{margin:0 0 6px}
-.pop .tiers{margin-top:6px}
+.hp{display:block;margin:0 0 7px}
+.hp:last-child{margin-bottom:0}
+div.help{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:4px}
+.pop .tiers{margin:0 0 7px;font-size:13px;color:var(--ink)}
+.tiers li{margin-bottom:2px}
 .helpsw{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted)}
 .helpsw .ib{margin:0;pointer-events:none}
 .helpsw[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:600}
@@ -110,7 +113,7 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
 .scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
 table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
 th,td{padding:9px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
-th:nth-child(2),td:nth-child(2),th:nth-child(8),td:nth-child(8),th:last-child,td:last-child{text-align:left}
+th:nth-child(2),td:nth-child(2),th:nth-child(7),td:nth-child(7),th:last-child,td:last-child{text-align:left}
 thead th{font-weight:500;color:var(--muted);font-size:13px;position:sticky;top:0;background:var(--panel)}
 thead th button{border:0;background:none;padding:0;cursor:pointer;color:inherit;font-weight:inherit}
 thead th button[data-dir]::after{content:attr(data-dir);margin-left:3px;color:var(--accent)}
@@ -211,6 +214,8 @@ details.excluded ul{columns:3 220px;padding-left:18px;color:var(--muted);font-si
 .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .empty{padding:40px 20px;text-align:center;color:var(--muted);background:var(--panel);border:1px dashed var(--line);border-radius:10px}
 
+footer p{margin:0 0 6px}
+footer p:last-child{margin:0}
 footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;color:var(--muted)}
 @media (max-width:860px){
   .two{grid-template-columns:1fr}
@@ -280,16 +285,18 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
           <input type="range" id="erHi" min="0" max="1" step="0.05" aria-label="ER 上限">
         </div>
         <div class="help" id="h-er">
-        <small>近 30 根 K 線的淨位移 ÷ 總路程。越接近 0 越像<span class="hl">來回震盪</span>，越接近 1 越像單邊趨勢。</small>
+        <span class="hp"><span class="hl">效率比值</span>（Efficiency Ratio，ER）用來分辨這支幣目前是「單邊趨勢」還是「來回震盪」，算法是近 30 根 K 線的「淨位移 ÷ 總路程」。</span>
+        <span class="hp">越接近 0，越像來回震盪；越接近 1，越像單邊趨勢。</span>
         <ul class="tiers" id="tierSpot">
-          <li><b class="num">&lt; 0.6</b>初步通過，可考慮開現貨網格。</li>
-          <li><b class="num">&gt; 0.6</b>單邊過強，先觀望。</li>
+          <li><b class="num">&lt; 0.6</b><span>初步通過，可以考慮開現貨網格。</span></li>
+          <li><b class="num">&gt; 0.6</b><span>單邊過強，先觀望。</span></li>
         </ul>
         <ul class="tiers" id="tierPerp">
-          <li><b class="num">&lt; 0.3</b>來回震盪，適合中性網格（雙邊都有爆倉風險，新手慎用），也可以提前開做多或做空網格，埋伏之後的趨勢。</li>
-          <li><b class="num">0.3～0.6</b>有方向，適合做多或做空網格。</li>
-          <li><b class="num">&gt; 0.6</b>單邊過強，先觀望。</li>
+          <li><b class="num">&lt; 0.3</b><span>來回震盪。適合中性網格；也可以先開做多或做空網格，埋伏之後的趨勢。</span></li>
+          <li><b class="num">0.3～0.6</b><span>有方向。適合做多或做空網格。</span></li>
+          <li><b class="num">&gt; 0.6</b><span>單邊過強，先觀望。</span></li>
         </ul>
+        <span class="hp">取 30 根，是為了對齊第 2 步觀測範圍的預設值。</span>
         </div>
       </div>
     </div>
@@ -306,7 +313,6 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
           <th><button data-sort="price">價格</button></th>
           <th><button data-sort="atr">ATR%</button></th>
           <th><button data-sort="er">ER</button></th>
-          <th><button data-sort="adx">ADX</button></th>
           <th><button data-sort="vol">24h 成交量</button></th>
           <th>派網可開</th>
           <th>狀態</th>
@@ -408,7 +414,11 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
 </main>
 
 <div class="pop" id="pop" role="dialog" hidden></div>
-<footer><div class="wrap">指標設定：ATR(30)、ER(30)、ADX(14)。教學工具：指標只用來判斷「目前適不適合開網格」，不預測漲跌，也不構成投資建議。手續費以派網現貨 0.05%、合約掛單 0.02% 計算；預估強平價請以派網建立機器人時顯示的數字為準。資料來源：CoinGecko、派網公開 API。</div></footer>
+<footer><div class="wrap">
+  <p>本工具用來協助篩選幣種、試算網格參數，僅供教學使用，不預測行情，也不構成投資建議。</p>
+  <p>手續費以派網現貨 0.05%、合約掛單 0.02% 計算；預估強平價請以派網建立機器人時顯示的數字為準。</p>
+  <p>資料來源：CoinGecko、派網公開 API，定時自動更新，資料時間見頁面上方。</p>
+</div></footer>
 
 <script>
 const DATA = /*DATA*/null;
@@ -496,11 +506,12 @@ function renderTable(){
   $("#vol").value = f.vol; $("#volOut").textContent = f.vol ? "≥ $" + fv(VOL_STEPS[f.vol]) : "不限";
   $("#atrMin").value = f.atrMin; $("#atrMax").value = f.atrMax;
   $("#atrOut").textContent = f.atrMin.toFixed(2) + "% – " + f.atrMax.toFixed(2) + "%";
+  const HL = '<span class="hl">平均真實波幅</span>（Average True Range，ATR）除以現價，';
   $("#atrHint").innerHTML = {
-    "1D": "平均每日真實波幅（含跳空）除以現價，衡量這支幣每天大約波動現價的幾 %，平均取近 30 天。數字越大，每天<span class=\"hl\">波動幅度</span>越大。",
-    "4H": "每根 4 小時 K 線的平均真實波幅（含跳空）除以現價，平均取近 30 根（約 5 天）。數字越大，<span class=\"hl\">波動幅度</span>越大。",
-    "1W": "每週的平均真實波幅（含跳空）除以現價，衡量這支幣每週大約波動現價的幾 %，平均取近 30 週（約 7 個月）。數字越大，<span class=\"hl\">波動幅度</span>越大。"
-  }[S.tf] + "<br>預設下限＝BTC 當下的數值，可以自己拉滑桿調整。";
+    "1D": `<span class="hp">${HL}衡量這支幣每天大約波動現價的幾 %，取近 30 天平均。</span><span class="hp">數字越大，代表每天的波動幅度越大。</span>`,
+    "4H": `<span class="hp">${HL}衡量這支幣每 4 小時大約波動現價的幾 %，取近 30 根 K 線平均（約 5 天）。</span><span class="hp">數字越大，代表每 4 小時的波動幅度越大。</span>`,
+    "1W": `<span class="hp">${HL}衡量這支幣每週大約波動現價的幾 %，取近 30 週平均（約 7 個月）。</span><span class="hp">數字越大，代表每週的波動幅度越大。</span>`
+  }[S.tf] + '<span class="hp">預設下限是 BTC 當下的數值，可以拉滑桿自行調整。</span><span class="hp">取 30 根，是為了對齊第 2 步觀測範圍的預設值。</span>';
   const mx = TF[S.tf].atrMax;
   $("#atrMin").max = mx; $("#atrMax").max = mx;
   $("#atrFill").style.left = (f.atrMin/mx*100) + "%"; $("#atrFill").style.right = (100 - f.atrMax/mx*100) + "%";
@@ -532,7 +543,7 @@ function renderTable(){
   $$("thead th button").forEach(b => { if (b.dataset.sort === key) b.dataset.dir = dir > 0 ? "▲" : "▼"; else delete b.dataset.dir; });
   const tb = $("#tbody");
   if (!rows.length){
-    tb.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:28px;color:var(--muted);cursor:default">沒有幣通過目前的門檻。放寬 ATR% 或 ER 的門檻，或勾選「顯示未通過的幣」看差在哪裡。</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted);cursor:default">沒有幣通過目前的門檻。放寬 ATR% 或 ER 的門檻，或勾選「顯示未通過的幣」看差在哪裡。</td></tr>`;
     return;
   }
   tb.innerHTML = rows.map(({c, r}) => {
@@ -547,7 +558,6 @@ function renderTable(){
       <td class="num">${fp(d.price)}</td>
       <td class="num">${pct(d.atrPct)}</td>
       <td class="num">${d.er.toFixed(2)}<span class="meter"><i style="width:${erW}%"></i></span></td>
-      <td class="num">${d.adx!=null?d.adx.toFixed(0):"—"}</td>
       <td class="num">$${fv(c.vol24)}</td>
       <td>${avail}</td><td>${st}</td></tr>`;
   }).join("");
