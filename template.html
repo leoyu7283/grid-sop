@@ -147,7 +147,18 @@ details.excluded ul{columns:3 220px;padding-left:18px;color:var(--muted);font-si
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);margin-bottom:18px}
 .stat{padding:12px 16px;border-right:1px solid var(--line)}
 .stat:last-child{border-right:0}
-.stat .k{font-size:13px;color:var(--muted)}
+.stat .k{font-size:13px;color:var(--muted);display:flex;align-items:center}
+.stat.cs-ok{background:var(--good-soft)}
+.stat.cs-split{background:var(--warn-soft)}
+.stat.cs-bad{background:var(--bad-soft)}
+.consensus{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:-8px 0 18px;padding:10px 16px;border-radius:10px;font-size:14px;line-height:1.55}
+.consensus[hidden]{display:none}
+.consensus b{font-weight:700;white-space:nowrap}
+.consensus.cs-ok{background:var(--good-soft);color:var(--good)}
+.consensus.cs-split{background:var(--warn-soft);color:var(--warn)}
+.consensus.cs-bad{background:var(--bad-soft);color:var(--bad)}
+.consensus span{color:var(--ink)}
+body.show-help button.ib.keep[data-help]{display:inline-grid}
 .stat .v{font-family:var(--num);font-size:22px;font-weight:600;line-height:1.3}
 .stat .h{font-size:12.5px;color:var(--muted);line-height:1.45}
 .two{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,1fr);gap:18px;align-items:start}
@@ -352,6 +363,16 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
         <select id="cSel" aria-label="切換幣種"></select>
       </div>
       <div class="stats" id="cStats"></div>
+      <div class="consensus" id="consensus" hidden></div>
+      <div class="helpsrc" id="h-adx" hidden>
+        <span class="hp"><span class="hl">平均趨向指標</span>（Average Directional Index，ADX）衡量趨勢有多強，看近 14 根 K 線是不是持續往同一個方向推進。它看不出漲跌方向：強勢上漲和強勢下跌，ADX 都會很高。</span>
+        <ul class="tiers">
+          <li><b class="num">&lt; 20</b><span>盤整，沒有明顯趨勢</span></li>
+          <li><b class="num">20～40</b><span>趨勢正在增強</span></li>
+          <li><b class="num">&gt; 40</b><span>趨勢極強</span></li>
+        </ul>
+        <span class="hp">搭配 ER 看：ER 低、ADX 也低，兩者都說是震盪；ER 低、ADX 高，代表中間有過一段強烈的單邊走勢，請看線圖確認。</span>
+      </div>
       <div class="two">
         <div class="card chartbox">
           <div class="chhead"><h3 id="chTitle"></h3><div class="ctrl" id="showCtrl">顯示範圍<div class="seg sm" id="showSeg" role="group" aria-label="線圖顯示範圍"></div></div></div>
@@ -520,23 +541,25 @@ function sortVal(c, k){
   const d = c.tf[S.tf];
   return {rank:c.rank, sym:c.sym, price:d.price, atr:d.atrPct, er:d.er, adx:d.adx, vol:c.vol24}[k];
 }
-function renderTable(){
-  const f = S.f[S.tf];
-  $("#vol").value = f.vol; $("#volOut").textContent = f.vol ? "≥ $" + fv(VOL_STEPS[f.vol]) : "不限";
-  $("#atrMin").value = f.atrMin; $("#atrMax").value = f.atrMax;
-  $("#atrOut").textContent = f.atrMin.toFixed(2) + "% – " + f.atrMax.toFixed(2) + "%";
+function updHelp(){
   const HL = '<span class="hl">平均真實波幅</span>（Average True Range，ATR）除以現價，';
   $("#atrHint").innerHTML = {
     "1D": `<span class="hp">${HL}衡量這支幣每天大約波動現價的幾 %，取近 30 天平均。</span><span class="hp">數字越大，代表每天的波動幅度越大。</span>`,
     "4H": `<span class="hp">${HL}衡量這支幣每 4 小時大約波動現價的幾 %，取近 30 根 K 線平均（約 5 天）。</span><span class="hp">數字越大，代表每 4 小時的波動幅度越大。</span>`,
     "1W": `<span class="hp">${HL}衡量這支幣每週大約波動現價的幾 %，取近 30 週平均（約 7 個月）。</span><span class="hp">數字越大，代表每週的波動幅度越大。</span>`
   }[S.tf] + '<span class="hp">預設下限是 BTC 當下的數值，可以拉滑桿自行調整。</span><span class="hp">取 30 根，是為了對齊第 2 步觀測範圍的預設值。</span>';
+  $("#tierSpot").hidden = S.mk === "perp"; $("#tierPerp").hidden = S.mk !== "perp";
+}
+function renderTable(){
+  const f = S.f[S.tf];
+  $("#vol").value = f.vol; $("#volOut").textContent = f.vol ? "≥ $" + fv(VOL_STEPS[f.vol]) : "不限";
+  $("#atrMin").value = f.atrMin; $("#atrMax").value = f.atrMax;
+  $("#atrOut").textContent = f.atrMin.toFixed(2) + "% – " + f.atrMax.toFixed(2) + "%";
   const mx = TF[S.tf].atrMax;
   $("#atrMin").max = mx; $("#atrMax").max = mx;
   $("#atrFill").style.left = (f.atrMin/mx*100) + "%"; $("#atrFill").style.right = (100 - f.atrMax/mx*100) + "%";
   const isPerp = S.mk === "perp";
   $("#modeTag").textContent = `目前篩選：${isPerp ? "合約網格" : "現貨網格"}・${TF[S.tf].name}`;
-  $("#tierSpot").hidden = isPerp; $("#tierPerp").hidden = !isPerp;
   $("#er").hidden = isPerp; $("#erDual").hidden = !isPerp;
   if (!isPerp){
     $("#er").value = f.er; $("#erOut").textContent = "≤ " + f.er.toFixed(2);
@@ -585,6 +608,19 @@ function renderTable(){
 // ---------- grid calc ----------
 function suggestDir(c){ return trendDir(c); }
 const DIRN = {long:"做多", short:"做空", neutral:"中性"};
+// ER 與 ADX 的共識：兩者各分三段（震盪／有方向／強趨勢），落在同一段即為一致
+function consensus(d){
+  if (d.adx == null) return null;
+  const e = d.er < 0.3 ? 0 : d.er <= 0.6 ? 1 : 2;
+  const a = d.adx < 20 ? 0 : d.adx <= 40 ? 1 : 2;
+  if (e === a){
+    if (e === 0) return {cls:"ok", title:"兩指標一致：震盪", text:"ER 和 ADX 都顯示震盪，適合網格。"};
+    if (e === 1) return {cls:"ok", title:"兩指標一致：有方向", text:"ER 和 ADX 都顯示有方向。" + (S.mk === "spot" ? "現貨網格只能做多，留意方向是否向下。" : "適合做多或做空網格。")};
+    return {cls:"bad", title:"兩指標一致：強趨勢", text:"ER 和 ADX 都顯示趨勢很強，先觀望。"};
+  }
+  if (a > e) return {cls:"split", title:"兩指標分歧", text:"ADX 偏強、ER 偏弱：近期可能剛出現一段走勢，ER 還沒反映。請看線圖最近幾根 K 線確認。"};
+  return {cls:"split", title:"兩指標分歧", text:"ER 偏強、ADX 偏弱：一個月下來淨移動不小，但最近推進力道減弱，可能正在轉為震盪。請看線圖確認。"};
+}
 function maxNet(c){ return c.tf[S.tf].atrPct/2 - FEE[S.mk]*100; }
 function defaultNet(c){ return Math.max(0.05, Math.floor((c.tf[S.tf].atrPct/4 - FEE[S.mk]*100) * 20) / 20); }
 function calc(c){
@@ -756,16 +792,18 @@ function renderCoin(){
   const opts = tfCoins().slice().sort((a,b)=>a.rank-b.rank).map(x => `<option value="${esc(x.sym)}" ${x.sym===c.sym?"selected":""}>${esc(x.sym)}${reasons(x).length?"":" ✓"}</option>`).join("");
   $("#cSel").innerHTML = opts;
   const erTxt = d.er <= 0.15 ? "明顯震盪" : d.er <= 0.3 ? "偏震盪" : d.er <= 0.6 ? "有方向" : "單邊趨勢";
-  const adxTxt = d.adx == null ? "" : d.adx < 20 ? "無明顯趨勢" : d.adx < 25 ? "趨勢偏弱" : "趨勢明確";
-  const maTxt = d.price >= d.ma50 ? "價格在均線上方" : "價格在均線下方";
+  const adxTxt = d.adx == null ? "資料不足" : d.adx < 20 ? "盤整" : d.adx <= 40 ? "趨勢增強" : "趨勢極強";
+  const cs = consensus(d);
   const g0 = calc(c);
   $("#cStats").innerHTML = [
-    ["ATR%(30)", pct(d.atrPct), `平均每根 K 線波動 ${fp(d.atr)}`],
-    ["ER(30)", d.er.toFixed(2), erTxt],
-    ["ADX(14)", d.adx != null ? d.adx.toFixed(1) : "—", adxTxt],
-    ["MA50", fp(d.ma50), maTxt],
+    ["ATR%(30)", pct(d.atrPct), `平均每根 K 線波動 ${fp(d.atr)}`, "atrHint"],
+    ["ER(30)", d.er.toFixed(2), erTxt, "h-er", cs && cs.cls],
+    ["ADX(14)", d.adx != null ? d.adx.toFixed(1) : "—", adxTxt, "h-adx", cs && cs.cls],
     [`近 ${S.look} 根高／低`, `${fp(g0.hiX)}`, `低點 ${fp(g0.loX)}`]
-  ].concat(c.yr ? [[c.yr.days >= 365 ? "近 1 年高／低" : `上市以來高／低（${c.yr.days} 天）`, fp(c.yr.hi), `低點 ${fp(c.yr.lo)}`]] : []).map(([k, v, h]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join("");
+  ].concat(c.yr ? [[c.yr.days >= 365 ? "近 1 年高／低" : `上市以來高／低（${c.yr.days} 天）`, fp(c.yr.hi), `低點 ${fp(c.yr.lo)}`]] : []).map(([k, v, h, hid, cl]) => `<div class="stat${cl ? " cs-" + cl : ""}"><div class="k">${k}${hid ? `<button type="button" class="ib keep" data-help="${hid}" aria-label="說明">i</button>` : ""}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join("");
+  const cbox = $("#consensus");
+  cbox.hidden = !cs;
+  if (cs){ cbox.className = "consensus cs-" + cs.cls; cbox.innerHTML = `<b>${cs.title}</b><span>${cs.text}</span>`; }
 
   // form state
   if (document.activeElement !== $("#cap")) $("#cap").value = S.cap;
@@ -925,6 +963,7 @@ function setStep(n){
   window.scrollTo({top:0});
 }
 function render(){
+  updHelp();
   $$("[data-tf]").forEach(b => b.setAttribute("aria-pressed", b.dataset.tf === S.tf));
   $$("[data-mk]").forEach(b => b.setAttribute("aria-pressed", b.dataset.mk === S.mk));
   $("#picked").textContent = S.sym ? `已選：${S.sym}・${S.mk==="spot"?"現貨":"合約"}・${TF[S.tf].short}` : "";
