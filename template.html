@@ -611,18 +611,38 @@ function renderTable(){
 // ---------- grid calc ----------
 function suggestDir(c){ return trendDir(c); }
 const DIRN = {long:"做多", short:"做空", neutral:"中性"};
+// 「自動」方向的說明句，跟著共識列的狀態走
+function dirNote(c, d, g){
+  const ch = chg30(c), mv = `近 30 根 K 線${ch >= 0 ? "上漲" : "下跌"} ${Math.abs(ch).toFixed(1)}%`, D = DIRN[g.dir];
+  const cs = consensus(d, c);
+  if (!cs) return `目前採用：${D}。${mv}。ADX 資料不足，請先看線圖確認再開單。`;
+  const k = cs.k;
+  if (k === "range") return `目前採用：${D}。ER 和 ADX 都顯示震盪，最適合的是中性網格，但中性網格屬進階、兩側都有爆倉風險。新手版先依${mv} 採用${D}，這個方向只當埋伏參考。`;
+  if (k === "dir") return `目前採用：${D}。ER 和 ADX 都顯示有方向，${mv}，方向和指標一致。`;
+  if (k === "strong") return `目前採用：${D}。ER 和 ADX 都顯示強趨勢，建議先觀望；如果還是要開，依${mv} 採用${D}。`;
+  return `目前採用：${D}。兩指標分歧，方向參考性較低。${mv}，請先看線圖確認再開單。`;
+}
 // ER 與 ADX 的共識：兩者各分三段（震盪／有方向／強趨勢），落在同一段即為一致
 const LV = ["震盪", "有方向", "強趨勢"];
 // 以畫面顯示的位數判斷分段，避免「顯示 0.30 卻歸為震盪」
 const erLv = v => (v = Math.round(v * 100) / 100) < 0.3 ? 0 : v <= 0.6 ? 1 : 2;
 const adxLv = v => (v = Math.round(v * 10) / 10) < 20 ? 0 : v <= 40 ? 1 : 2;
-function consensus(d){
+function consensus(d, c){
   if (d.adx == null) return null;
   const e = erLv(d.er), a = adxLv(d.adx);
   if (e === a){
-    if (e === 0) return {cls:"ok", title:"兩指標一致：震盪", text:"ER 和 ADX 都顯示震盪，適合網格。"};
-    if (e === 1) return {cls:"ok", title:"兩指標一致：有方向", text:"ER 和 ADX 都顯示有方向。" + (S.mk === "spot" ? "現貨網格只能做多，留意方向是否向下。" : "適合做多或做空網格。")};
-    return {cls:"bad", title:"兩指標一致：強趨勢", text:"ER 和 ADX 都顯示強趨勢，先觀望。"};
+    if (e === 0) return {k:"range", cls:"ok", title:"兩指標一致：震盪", text:"ER 和 ADX 都顯示震盪，適合網格。"};
+    if (e === 1){
+      let t = "適合做多或做空網格。";
+      if (S.mk === "spot" && c){
+        const ch = chg30(c), m = Math.abs(ch).toFixed(1);
+        t = ch < 0 ? `但近 30 根 K 線下跌 ${m}%。現貨網格只能做多，方向不利，建議觀望或改用合約做空。`
+                   : `近 30 根 K 線上漲 ${m}%，和現貨網格的做多方向一致。`;
+        if (ch < 0) return {k:"dir", cls:"split", title:"兩指標一致：有方向", text:"ER 和 ADX 都顯示有方向，" + t};
+      }
+      return {k:"dir", cls:"ok", title:"兩指標一致：有方向", text:"ER 和 ADX 都顯示有方向，" + t};
+    }
+    return {k:"strong", cls:"bad", title:"兩指標一致：強趨勢", text:"ER 和 ADX 都顯示強趨勢，先觀望。"};
   }
   // 只差一段、且其中一個數值貼近分界線時，文字註明「接近」
   let erT = LV[e], adxT = LV[a], near = false;
@@ -632,8 +652,8 @@ function consensus(d){
     if (Math.abs(d.adx - ab) <= 2){ adxT += `（${d.adx.toFixed(1)}，接近${LV[e]}）`; near = true; }
   }
   const head = `ER 顯示${erT}、ADX 顯示${adxT}：` + (near ? "兩者差距不大。" : "");
-  if (a > e) return {cls:"split", title:"兩指標分歧", text: head + "近期可能剛出現一段走勢，ER 還沒反映。請看線圖最近幾根 K 線確認。"};
-  return {cls:"split", title:"兩指標分歧", text: head + "近 30 根下來淨移動不小，但最近推進力道減弱，可能正在轉為震盪。請看線圖確認。"};
+  if (a > e) return {k:"split", cls:"split", title:"兩指標分歧", text: head + "近期可能剛出現一段走勢，ER 還沒反映。請看線圖最近幾根 K 線確認。"};
+  return {k:"split", cls:"split", title:"兩指標分歧", text: head + "近 30 根下來淨移動不小，但最近推進力道減弱，可能正在轉為震盪。請看線圖確認。"};
 }
 function maxNet(c){ return c.tf[S.tf].atrPct/2 - FEE[S.mk]*100; }
 function defaultNet(c){ return Math.max(0.05, Math.floor((c.tf[S.tf].atrPct/4 - FEE[S.mk]*100) * 20) / 20); }
@@ -807,7 +827,7 @@ function renderCoin(){
   $("#cSel").innerHTML = opts;
   const erTxt = LV[erLv(d.er)];
   const adxTxt = d.adx == null ? "資料不足" : LV[adxLv(d.adx)];
-  const cs = consensus(d);
+  const cs = consensus(d, c);
   const g0 = calc(c);
   $("#cStats").innerHTML = [
     ["ATR%(30)", pct(d.atrPct), `平均每根 K 線波動 ${fp(d.atr)}`, "atrHint"],
@@ -844,9 +864,7 @@ function renderCoin(){
   $("#netOut").textContent = `→ 實際 ${tr2(g.netLo)}%・${g.n} 格`;
   if (S.mk === "perp"){
     const sd = suggestDir(c);
-    $("#dirNote").textContent = S.dir === "auto"
-      ? `目前採用：${DIRN[g.dir]}。近 30 根 K 線${chg30(c) >= 0 ? "上漲" : "下跌"} ${Math.abs(chg30(c)).toFixed(1)}%` + (d.er < 0.3 ? "，但 ER 偏低、行情偏震盪，這個方向只能當埋伏參考。" : "。")
-      : `系統建議：${DIRN[sd]}（你已手動改為${DIRN[S.dir]}）`;
+    $("#dirNote").textContent = S.dir === "auto" ? dirNote(c, d, g) : `系統建議：${DIRN[sd]}（你已手動改為${DIRN[S.dir]}）`;
     $("#lev").value = S.lev; $("#levOut").textContent = S.lev + "x";
     $("#levHint").innerHTML = `<span class="hp">這裡的槓桿只用來試算交易額和每格數量。槓桿越高，強平（爆倉）的風險越高。</span><span class="hp">實際開單時，在派網選好槓桿後會顯示預估強平價，務必確認它落在網格區間「外」；不符合的話，就調低槓桿或追加保證金。</span>`;
   }
