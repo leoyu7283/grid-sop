@@ -232,6 +232,16 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
   .stat{border-right:0;border-bottom:1px solid var(--line)}
   nav.steps .picked{display:none}
 }
+@media (max-width:640px){
+  .mh{display:none}
+  table{min-width:0;font-size:13.5px}
+  th,td{padding:9px 8px}
+  td.sym span,.meter{display:none}
+  td:last-child{white-space:normal}
+  td:last-child .tag{margin:1px 2px 1px 0}
+  nav.steps button{padding:12px 8px 10px;gap:6px;font-size:14px}
+  nav.steps .wrap{padding:0 8px}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -316,13 +326,13 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
     <div class="scroll">
       <table>
         <thead><tr>
-          <th><button data-sort="rank">市值排名</button></th>
+          <th class="mh"><button data-sort="rank">市值排名</button></th>
           <th><button data-sort="sym">幣種</button></th>
-          <th><button data-sort="price">價格</button></th>
+          <th class="mh"><button data-sort="price">價格</button></th>
           <th><button data-sort="atr">ATR%</button></th>
           <th><button data-sort="er">ER</button></th>
-          <th><button data-sort="vol">24h 成交量</button></th>
-          <th>派網可開</th>
+          <th class="mh"><button data-sort="vol">24h 成交量</button></th>
+          <th class="mh">派網可開</th>
           <th>狀態</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
@@ -457,7 +467,7 @@ const curCoin = () => { const c = byS[S.sym]; return c && c.tf[S.tf] ? c : null;
 const S = {
   tf:"1D", mk:"spot", step:1, sort:{key:null, dir:1}, showFail:false,
   f:{ "4H":{...DEF["4H"]}, "1D":{...DEF["1D"]}, "1W":{...DEF["1W"]} },
-  sym:null, cap:1000, dir:"auto", look:30, show:120, net:null, rL:null, rU:null, lev:1
+  sym:null, cap:1000, dir:"auto", look:30, show:null, net:null, rL:null, rU:null, lev:1
 };
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -562,13 +572,13 @@ function renderTable(){
     const okTxt = S.mk === "perp" ? (d.er < 0.3 ? "初步通過・震盪" : `初步通過・${trendDir(c) === "long" ? "做多" : "做空"}`) : "初步通過";
     const st = r.length ? r.map(([t, s]) => `<span class="tag ${t}">${s}</span>`).join("") : `<span class="tag ok">${okTxt}</span>`;
     return `<tr class="${r.length?"fail":""}" data-sym="${esc(c.sym)}" tabindex="0">
-      <td class="num">${c.rank}</td>
+      <td class="num mh">${c.rank}</td>
       <td class="sym"><b>${esc(c.sym)}</b><span>${esc(c.name)}</span></td>
-      <td class="num">${fp(d.price)}</td>
+      <td class="num mh">${fp(d.price)}</td>
       <td class="num">${pct(d.atrPct)}</td>
       <td class="num">${d.er.toFixed(2)}<span class="meter"><i style="width:${erW}%"></i></span></td>
-      <td class="num">$${fv(c.vol24)}</td>
-      <td>${avail}</td><td>${st}</td></tr>`;
+      <td class="num mh">$${fv(c.vol24)}</td>
+      <td class="mh">${avail}</td><td>${st}</td></tr>`;
   }).join("");
 }
 
@@ -616,10 +626,14 @@ function calc(c){
 }
 
 // ---------- charts ----------
+const isNarrow = () => ($("#chart").clientWidth || 800) < 600;
+const showStd = () => isNarrow() ? [60, 120, 250, 500] : [120, 250, 500];
+const showN = () => S.show ?? (isNarrow() ? 60 : 120);
 function candleChart(c, g){
   const d = c.tf[S.tf], W = Math.max(320, Math.round($("#chart").clientWidth) || 800), H = W < 600 ? 300 : 360, pr = 70, pt = 10, pb = 26, pl = 4;
-  const N = d.k.length, eff = Math.min(S.show, N);
-  const nShow = Math.min(N, (W < 600 && eff === 120) ? Math.max(60, S.look) : Math.max(eff, S.look));
+  const N = d.k.length, eff = Math.min(showN(), N);
+  // 觀測範圍超過顯示範圍時，自動切到能完整涵蓋它的下一檔，讓標題與按鈕一致
+  const nShow = S.look <= eff ? eff : Math.min(N, showStd().find(n => n >= S.look) ?? N);
   const k = d.k.slice(-nShow), yr = nShow * TF[S.tf].days > 200;
   let lo = Math.min(...k.map(x => x[3]), g.L), hi = Math.max(...k.map(x => x[2]), g.U);
   const padY = (hi-lo)*0.04; lo -= padY; hi += padY;
@@ -787,8 +801,8 @@ function renderCoin(){
   $("#chart").innerHTML = candleChart(c, g);
   $("#chTitle").textContent = `${TF[S.tf].name}・近 ${S._cg.k.length} 根（${spanText(S._cg.k.length)}）・建議網格 ${g.n} 格`;
   {
-    const N = d.k.length, std = [120, 250, 500], opts = std.filter(n => n < N); opts.push(N);
-    const eff = Math.min(S.show, N), cur = opts.includes(eff) ? eff : opts.filter(n => n <= eff).pop() || opts[0];
+    const N = d.k.length, std = showStd(), opts = std.filter(n => n < N); opts.push(N);
+    const shown = S._cg.k.length, cur = opts.find(n => n >= shown) ?? opts[opts.length - 1];
     $("#showCtrl").hidden = opts.length < 2;
     $("#showSeg").innerHTML = opts.map(n => `<button type="button" data-n="${n}" aria-pressed="${n === cur}">${n === N && !std.includes(n) ? "全部 " + n : n} 根</button>`).join("");
   }
