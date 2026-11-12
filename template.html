@@ -369,9 +369,9 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
       <div class="helpsrc" id="h-adx" hidden>
         <span class="hp"><span class="hl">平均趨向指標</span>（Average Directional Index，ADX）衡量趨勢有多強，看近 14 根 K 線是不是持續往同一個方向推進。它看不出漲跌方向：強勢上漲和強勢下跌，ADX 都會很高。</span>
         <ul class="tiers">
-          <li><b class="num">&lt; 20</b><span>盤整，沒有明顯趨勢</span></li>
-          <li><b class="num">20～40</b><span>趨勢正在增強</span></li>
-          <li><b class="num">&gt; 40</b><span>趨勢極強</span></li>
+          <li><b class="num">&lt; 20</b><span>震盪，沒有明顯趨勢</span></li>
+          <li><b class="num">20～40</b><span>有方向，趨勢正在增強</span></li>
+          <li><b class="num">&gt; 40</b><span>強趨勢</span></li>
         </ul>
         <span class="hp">搭配 ER 看：ER 低、ADX 也低，兩者都說是震盪；ER 低、ADX 高，代表中間有過一段強烈的單邊走勢，請看線圖確認。</span>
       </div>
@@ -612,17 +612,28 @@ function renderTable(){
 function suggestDir(c){ return trendDir(c); }
 const DIRN = {long:"做多", short:"做空", neutral:"中性"};
 // ER 與 ADX 的共識：兩者各分三段（震盪／有方向／強趨勢），落在同一段即為一致
+const LV = ["震盪", "有方向", "強趨勢"];
+// 以畫面顯示的位數判斷分段，避免「顯示 0.30 卻歸為震盪」
+const erLv = v => (v = Math.round(v * 100) / 100) < 0.3 ? 0 : v <= 0.6 ? 1 : 2;
+const adxLv = v => (v = Math.round(v * 10) / 10) < 20 ? 0 : v <= 40 ? 1 : 2;
 function consensus(d){
   if (d.adx == null) return null;
-  const e = d.er < 0.3 ? 0 : d.er <= 0.6 ? 1 : 2;
-  const a = d.adx < 20 ? 0 : d.adx <= 40 ? 1 : 2;
+  const e = erLv(d.er), a = adxLv(d.adx);
   if (e === a){
     if (e === 0) return {cls:"ok", title:"兩指標一致：震盪", text:"ER 和 ADX 都顯示震盪，適合網格。"};
     if (e === 1) return {cls:"ok", title:"兩指標一致：有方向", text:"ER 和 ADX 都顯示有方向。" + (S.mk === "spot" ? "現貨網格只能做多，留意方向是否向下。" : "適合做多或做空網格。")};
-    return {cls:"bad", title:"兩指標一致：強趨勢", text:"ER 和 ADX 都顯示趨勢很強，先觀望。"};
+    return {cls:"bad", title:"兩指標一致：強趨勢", text:"ER 和 ADX 都顯示強趨勢，先觀望。"};
   }
-  if (a > e) return {cls:"split", title:"兩指標分歧", text:"ADX 偏強、ER 偏弱：近期可能剛出現一段走勢，ER 還沒反映。請看線圖最近幾根 K 線確認。"};
-  return {cls:"split", title:"兩指標分歧", text:"ER 偏強、ADX 偏弱：一個月下來淨移動不小，但最近推進力道減弱，可能正在轉為震盪。請看線圖確認。"};
+  // 只差一段、且其中一個數值貼近分界線時，文字註明「接近」
+  let erT = LV[e], adxT = LV[a], near = false;
+  if (Math.abs(e - a) === 1){
+    const eb = [0.3, 0.6][Math.min(e, a)], ab = [20, 40][Math.min(e, a)];
+    if (Math.abs(d.er - eb) <= 0.02){ erT += `（${d.er.toFixed(2)}，接近${LV[a]}）`; near = true; }
+    if (Math.abs(d.adx - ab) <= 2){ adxT += `（${d.adx.toFixed(1)}，接近${LV[e]}）`; near = true; }
+  }
+  const head = `ER 顯示${erT}、ADX 顯示${adxT}：` + (near ? "兩者差距不大。" : "");
+  if (a > e) return {cls:"split", title:"兩指標分歧", text: head + "近期可能剛出現一段走勢，ER 還沒反映。請看線圖最近幾根 K 線確認。"};
+  return {cls:"split", title:"兩指標分歧", text: head + "近 30 根下來淨移動不小，但最近推進力道減弱，可能正在轉為震盪。請看線圖確認。"};
 }
 function maxNet(c){ return c.tf[S.tf].atrPct/2 - FEE[S.mk]*100; }
 function defaultNet(c){ return Math.max(0.05, Math.floor((c.tf[S.tf].atrPct/4 - FEE[S.mk]*100) * 20) / 20); }
@@ -794,8 +805,8 @@ function renderCoin(){
   $("#cTags").innerHTML = r.length ? r.map(([t, s]) => `<span class="tag ${t}">${s}</span>`).join("") : `<span class="tag ok">初步通過</span>`;
   const opts = tfCoins().slice().sort((a,b)=>a.rank-b.rank).map(x => `<option value="${esc(x.sym)}" ${x.sym===c.sym?"selected":""}>${esc(x.sym)}${reasons(x).length?"":" ✓"}</option>`).join("");
   $("#cSel").innerHTML = opts;
-  const erTxt = d.er <= 0.15 ? "明顯震盪" : d.er <= 0.3 ? "偏震盪" : d.er <= 0.6 ? "有方向" : "單邊趨勢";
-  const adxTxt = d.adx == null ? "資料不足" : d.adx < 20 ? "盤整" : d.adx <= 40 ? "趨勢增強" : "趨勢極強";
+  const erTxt = LV[erLv(d.er)];
+  const adxTxt = d.adx == null ? "資料不足" : LV[adxLv(d.adx)];
   const cs = consensus(d);
   const g0 = calc(c);
   $("#cStats").innerHTML = [
