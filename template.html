@@ -248,6 +248,13 @@ body.show-help button.ib.keep[data-help]{display:inline-grid}
 .empty{padding:40px 20px;text-align:center;color:var(--muted);background:var(--panel);border:1px dashed var(--line);border-radius:10px}
 
 footer p{margin:0 0 6px}
+footer .author{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;padding-bottom:16px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+footer .who{display:flex;flex-direction:column;gap:2px}
+footer .who b{color:var(--ink);font-size:14.5px}
+footer .who span{font-size:13px}
+footer .social{display:flex;flex-wrap:wrap;gap:8px}
+footer .social a{color:var(--ink);text-decoration:none;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;font-size:13px}
+footer .social a:hover{border-color:var(--accent);color:var(--accent)}
 footer p:last-child{margin:0}
 footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;color:var(--muted)}
 @media (max-width:860px){
@@ -486,6 +493,16 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
 
 <div class="pop" id="pop" role="dialog" hidden></div>
 <footer><div class="wrap">
+  <div class="author">
+    <div class="who"><b>Leo Yu｜幣圈網格實戰</b><span>親身實測，用各種幣圈工具參與加密市場</span></div>
+    <nav class="social" aria-label="作者的自媒體">
+      <a href="https://www.instagram.com/imo_weekly/" target="_blank" rel="noopener">IG</a>
+      <a href="https://www.threads.com/@imo_weekly" target="_blank" rel="noopener">Threads</a>
+      <a href="https://x.com/leo7283" target="_blank" rel="noopener">X</a>
+      <a href="https://imoweekly.im/" target="_blank" rel="noopener">電子報</a>
+      <a href="https://line.me/ti/g2/VgBtydnjyN6sBzZLHzXo4L5ulZZfXcZenfzZZQ?utm_source=invitation&amp;utm_medium=link_copy&amp;utm_campaign=default" target="_blank" rel="noopener">LINE 社群</a>
+    </nav>
+  </div>
   <p>本工具用來協助篩選幣種、試算網格參數，僅供教學使用，不預測行情，也不構成投資建議。</p>
   <p>手續費以派網現貨 0.05%、合約掛單 0.02% 計算；預估強平價請以派網建立機器人時顯示的數字為準。</p>
   <p>資料來源：CoinGecko、派網公開 API，定時自動更新，資料時間見頁面上方。</p>
