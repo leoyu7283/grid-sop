@@ -55,12 +55,15 @@ def classify(c):
 # ---------- 2. 派網交易對 ----------
 spot = get("https://api.pionex.com/api/v1/common/symbols", {"type": "SPOT"})["data"]["symbols"]
 perp = get("https://api.pionex.com/api/v1/common/symbols", {"type": "PERP"})["data"]["symbols"]
-spot_map = {s["baseCurrency"].upper(): s for s in spot if s["quoteCurrency"] == "USDT" and s.get("enable", True)}
+# enable=False 只代表派網關閉 API 下單，App 仍可開網格（例：HYPE、WLFI、XDC、BDX），所以一併納入
+# 以交易對名稱對應（WLFI_USDT 的 baseCurrency 是 WLFISPOT，不能用 baseCurrency）
+spot_map = {s["symbol"].rsplit("_", 1)[0].upper(): s for s in spot if s["quoteCurrency"] == "USDT"}
 perp_map = {s["symbol"].split("_")[0].upper(): s for s in perp if s["symbol"].endswith("_USDT_PERP")}
 SPOT_ALIAS = {"GRAM": "TON"}
-# 派網 App 可開現貨網格、但公開 API 現貨清單沒有的幣（人工到 App 確認，2026-11-14）
+# 派網 App 可開現貨網格、但公開 API 現貨清單完全沒有的幣（人工到 App 確認，2026-11-14）
 # 這些幣的現貨模式改用合約 K 線計算，每格數量的最小單位以派網顯示為準
-SPOT_MANUAL = {"PUMP", "HYPE", "GRAM", "WLFI", "MNT", "SKY", "RENDER", "NIGHT", "LIT", "ZRO"}
+# 已確認不能開現貨：CC、BTW、VVV、XMR。MORPHO App 有現貨，但 API 沒有任何 K 線，無法計算
+SPOT_MANUAL = {"PUMP", "GRAM", "MNT", "SKY", "RENDER", "NIGHT", "LIT", "ZRO"}
 
 tick = get("https://api.pionex.com/api/v1/market/tickers", {"type": "SPOT"})["data"]["tickers"]
 spot_amt = {t["symbol"]: float(t.get("amount") or 0) for t in tick}
