@@ -282,6 +282,8 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
   nav.steps button{padding:12px 8px 10px;gap:6px;font-size:14px}
   nav.steps .wrap{padding:0 8px}
 }
+/* 說明文字左右對齊（最後一行靠左），中文段落邊緣比較整齊 */
+.pop,.hp,.help,.form small,.warns li,.checklist label span,.risknote,.lede,.consensus > span:last-child{text-align:justify;text-justify:inter-character}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -919,7 +921,7 @@ function renderCoin(){
     const sd = suggestDir(c);
     $("#dirNote").textContent = S.dir === "auto" ? dirNote(c, d, g) : `系統建議：${DIRN[sd]}（你已手動改為${DIRN[S.dir]}）`;
     $("#lev").value = S.lev; $("#levOut").textContent = S.lev + "x";
-    $("#levHint").innerHTML = `<span class="hp">這裡的槓桿只用來試算交易額和每格數量。槓桿越高，強平（爆倉）的風險越高。</span><span class="hp">實際開單時，在派網選好槓桿後會顯示預估強平價，務必確認它落在網格區間「外」；不符合的話，就調低槓桿或追加保證金。</span>`;
+    $("#levHint").innerHTML = `<span class="hp">這裡的槓桿只用來試算交易額和每格數量。</span><span class="hp">槓桿越高，強平（爆倉）的風險越高。</span><span class="hp">實際開單時，在派網選好槓桿後會顯示預估強平價，務必確認它落在網格區間「外」；不符合的話，就調低槓桿或追加保證金。</span>`;
   }
   $("#chart").innerHTML = candleChart(c, g);
   $("#chTitle").textContent = `${TF[S.tf].name}・近 ${S._cg.k.length} 根（${spanText(S._cg.k.length)}）・建議網格 ${g.n} 格`;
