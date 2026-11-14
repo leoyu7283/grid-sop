@@ -58,6 +58,9 @@ perp = get("https://api.pionex.com/api/v1/common/symbols", {"type": "PERP"})["da
 spot_map = {s["baseCurrency"].upper(): s for s in spot if s["quoteCurrency"] == "USDT" and s.get("enable", True)}
 perp_map = {s["symbol"].split("_")[0].upper(): s for s in perp if s["symbol"].endswith("_USDT_PERP")}
 SPOT_ALIAS = {"GRAM": "TON"}
+# 派網 App 可開現貨網格、但公開 API 現貨清單沒有的幣（人工到 App 確認，2026-11-14）
+# 這些幣的現貨模式改用合約 K 線計算，每格數量的最小單位以派網顯示為準
+SPOT_MANUAL = {"PUMP", "HYPE", "GRAM", "WLFI", "MNT", "SKY", "RENDER", "NIGHT", "LIT", "ZRO"}
 
 tick = get("https://api.pionex.com/api/v1/market/tickers", {"type": "SPOT"})["data"]["tickers"]
 spot_amt = {t["symbol"]: float(t.get("amount") or 0) for t in tick}
@@ -185,16 +188,18 @@ for c in cg:
     if cls:
         excluded.append({**base, "reason": "穩定幣" if cls == "stable" else "包裝／質押幣"}); continue
     ssym = SPOT_ALIAS.get(sym, sym)
-    has_spot, has_perp = ssym in spot_map, sym in perp_map
+    api_spot, has_perp = ssym in spot_map, sym in perp_map
+    has_spot = api_spot or sym in SPOT_MANUAL
     if not (has_spot or has_perp):
         excluded.append({**base, "reason": "派網未上架"}); continue
-    srcs = ([f"{ssym}_USDT"] if has_spot else []) + ([f"{sym}_USDT_PERP"] if has_perp else [])
+    srcs = ([f"{ssym}_USDT"] if api_spot else []) + ([f"{sym}_USDT_PERP"] if has_perp else [])
     entry = {**base, "spot": has_spot, "perp": has_perp,
+             "spotManual": has_spot and not api_spot,
              "pionexVol": spot_amt.get(f"{ssym}_USDT"),
-             "minAmt": float(spot_map[ssym]["minAmount"]) if has_spot else None,
+             "minAmt": float(spot_map[ssym]["minAmount"]) if api_spot else None,
              "lot": {
                  "spot": {"step": 10 ** -int(spot_map[ssym]["basePrecision"]), "minQty": float(spot_map[ssym]["minTradeSize"]),
-                          "minNotional": float(spot_map[ssym]["minAmount"])} if has_spot else None,
+                          "minNotional": float(spot_map[ssym]["minAmount"])} if api_spot else None,
                  "perp": {"step": float(perp_map[sym]["baseStep"]), "minQty": float(perp_map[sym]["minSizeLimit"]),
                           "minNotional": float(perp_map[sym].get("minNotional") or 1)} if has_perp else None,
              },

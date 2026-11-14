@@ -358,7 +358,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
           <th><button data-sort="atr">ATR%</button></th>
           <th><button data-sort="er">ER</button></th>
           <th class="mh"><button data-sort="vol">24h 成交量</button></th>
-          <th class="mh">派網可開</th>
+          <th class="mh">派網可開 <button type="button" class="ib keep" data-help="h-avail" aria-label="說明">i</button></th>
           <th>狀態</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
@@ -379,6 +379,11 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
       </div>
       <div class="stats" id="cStats"></div>
       <div class="consensus" id="consensus" hidden></div>
+      <div class="helpsrc" id="h-avail" hidden>
+        <span class="hp"><span class="hl">派網可開</span>依派網公開資料判斷這支幣能開現貨網格、合約網格，還是兩種都能開。</span>
+        <span class="hp">少數幣（例如 PUMP）在派網 App 可以開現貨網格，公開資料卻沒有，這些幣經人工確認後補上，標示為「現貨＊」。</span>
+        <span class="hp">實際能不能開，請以派網 App 為準。</span>
+      </div>
       <div class="helpsrc" id="h-yr" hidden>
         <span class="hp"><span class="hl">近 1 年高／低</span>是近 365 天日線的最高價和最低價，不受你選的 K 線週期和觀測範圍影響。</span>
         <span class="hp">拿它和網格區間比一比，就知道這次的區間落在一年價格的哪個位置：區間越貼近一年的高點或低點，價格衝出網格的機會越大。</span>
@@ -613,7 +618,7 @@ function renderTable(){
   tb.innerHTML = rows.map(({c, r}) => {
     const d = c.tf[S.tf];
     const erW = Math.min(100, d.er*100);
-    const avail = (c.spot ? `<span class="tag ${S.mk==="spot"?"ok":"dim"}">現貨</span>` : "") + (c.perp ? `<span class="tag ${S.mk==="perp"?"ok":"dim"}">合約</span>` : "");
+    const avail = (c.spot ? `<span class="tag ${S.mk==="spot"?"ok":"dim"}">現貨${c.spotManual ? "＊" : ""}</span>` : "") + (c.perp ? `<span class="tag ${S.mk==="perp"?"ok":"dim"}">合約</span>` : "");
     const okTxt = S.mk === "perp" ? `初步通過・${DIRN[suggestDir(c)]}` : "初步通過";
     const st = r.length ? r.map(([t, s]) => `<span class="tag ${t}">${s}</span>`).join("") : `<span class="tag ok">${okTxt}</span>`;
     return `<tr class="${r.length?"fail":""}" data-sym="${esc(c.sym)}" tabindex="0">
@@ -921,7 +926,7 @@ function renderCoin(){
   rows.push(["每格淨利（扣費後）", netTxt]);
   if (S.mk === "perp") rows.push(["交易額（投資額 × 槓桿）", g.notional.toLocaleString(undefined, {maximumFractionDigits:2}) + " USDT"]);
   const qd = q => g.step ? q.toFixed(Math.max(0, Math.round(-Math.log10(g.step)))) : fp(q);
-  rows.push(["每格數量", g.qty > 0 ? `${qd(g.qty)} ${esc(c.sym)}` : `約 ${g.qtyRaw.toPrecision(2)} ${esc(c.sym)}（以派網為準）`]);
+  rows.push(["每格數量", S.mk === "spot" && c.spotManual ? `約 ${Number(g.qtyRaw.toPrecision(3)).toLocaleString()} ${esc(c.sym)}（以派網為準）` : g.qty > 0 ? `${qd(g.qty)} ${esc(c.sym)}` : `約 ${g.qtyRaw.toPrecision(2)} ${esc(c.sym)}（以派網為準）`]);
   rows.push(["每格金額（下限格～上限格）", `${g.amtLo.toFixed(2)}～${g.amtHi.toFixed(2)} USDT`]);
   rows.push(["每成交一格約賺", `${fmtU(g.profLo)}～${fmtU(g.profHi)} USDT`]);
   $("#pdl").innerHTML = rows.map(([k, v, t]) => t === "sec" ? `<dt class="sec">${k}<small>${v}</small></dt>` : `<dt>${k}</dt><dd class="${t?"txt":""}">${v}</dd>`).join("");
@@ -930,6 +935,7 @@ function renderCoin(){
 
   // warnings
   const w = [];
+  if (S.mk === "spot" && c.spotManual) w.push(["w", `派網公開資料沒有 ${esc(c.sym)} 現貨，這裡改用合約 K 線計算，兩者價格幾乎一樣。每格數量請以派網顯示為準。`]);
   if (r.length) w.push(["w", `這個幣沒有通過目前的篩選（${r.map(x=>x[1]).join("、")}），開網格前要多想一下。`]);
   if (g.ratio > 0.5) w.push(["b", `單格利潤率（扣費前）${pct(g.gross)} 超過 ATR% 的一半（${pct(d.atrPct/2)}），波動小的日子可能不會成交。調低單格利潤率。`]);
   {
