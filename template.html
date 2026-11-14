@@ -247,6 +247,11 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
 }
 @media (max-width:640px){
   .mh{display:none}
+  .stats{grid-template-columns:1fr 1fr}
+  .stat{border-bottom:1px solid var(--line)}
+  .stat:nth-child(1){order:3} .stat:nth-child(2){order:1} .stat:nth-child(3){order:2} .stat:nth-child(4){order:4}
+  .stat:nth-child(2),.stat:nth-child(1){border-right:1px solid var(--line)}
+  .stat:nth-child(1),.stat:nth-child(4){border-bottom:0}
   table{min-width:0;font-size:13.5px}
   th,td{padding:9px 8px}
   td.sym span,.meter{display:none}
@@ -316,16 +321,16 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
           <input type="range" id="erHi" min="0" max="1" step="0.05" aria-label="ER 上限">
         </div>
         <div class="help" id="h-er">
-        <span class="hp"><span class="hl">效率比值</span>（Efficiency Ratio，ER）用來分辨這支幣目前是「單邊趨勢」還是「來回震盪」，算法是近 30 根 K 線的「淨位移 ÷ 總路程」。</span>
-        <span class="hp">越接近 0，越像來回震盪；越接近 1，越像單邊趨勢。</span>
+        <span class="hp"><span class="hl">效率比值</span>（Efficiency Ratio，ER）用來分辨這支幣目前是震盪、有方向，還是強趨勢，算法是近 30 根 K 線的「淨位移 ÷ 總路程」。</span>
+        <span class="hp">越接近 0 越震盪；越接近 1，趨勢越強。</span>
         <ul class="tiers" id="tierSpot">
-          <li><b class="num">&lt; 0.6</b><span>初步通過，可以考慮開現貨網格。</span></li>
-          <li><b class="num">&gt; 0.6</b><span>單邊過強，先觀望。</span></li>
+          <li><b class="num">&lt; 0.6</b><span>震盪或有方向，初步通過，可以考慮開現貨網格。</span></li>
+          <li><b class="num">&gt; 0.6</b><span>強趨勢，先觀望。</span></li>
         </ul>
         <ul class="tiers" id="tierPerp">
-          <li><b class="num">&lt; 0.3</b><span>來回震盪。適合中性網格；也可以先開做多或做空網格，埋伏之後的趨勢。</span></li>
+          <li><b class="num">&lt; 0.3</b><span>震盪。最適合中性網格（進階）；新手可以先開做多或做空網格，埋伏之後的趨勢。</span></li>
           <li><b class="num">0.3～0.6</b><span>有方向。適合做多或做空網格。</span></li>
-          <li><b class="num">&gt; 0.6</b><span>單邊過強，先觀望。</span></li>
+          <li><b class="num">&gt; 0.6</b><span>強趨勢，先觀望。</span></li>
         </ul>
         <span class="hp">取 30 根，是為了對齊第 2 步觀測範圍的預設值。</span>
         </div>
@@ -366,6 +371,11 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
       </div>
       <div class="stats" id="cStats"></div>
       <div class="consensus" id="consensus" hidden></div>
+      <div class="helpsrc" id="h-yr" hidden>
+        <span class="hp"><span class="hl">近 1 年高／低</span>是近 365 天日線的最高價和最低價，不受你選的 K 線週期和觀測範圍影響。</span>
+        <span class="hp">拿它和網格區間比一比，就知道這次的區間落在一年價格的哪個位置：區間越貼近一年的高點或低點，價格衝出網格的機會越大。</span>
+        <span class="hp">這是過去的價格，不代表未來不會突破。上市未滿一年的幣，改顯示上市以來的高低點。</span>
+      </div>
       <div class="helpsrc" id="h-adx" hidden>
         <span class="hp"><span class="hl">平均趨向指標</span>（Average Directional Index，ADX）衡量趨勢有多強，看近 14 根 K 線是不是持續往同一個方向推進。它看不出漲跌方向：強勢上漲和強勢下跌，ADX 都會很高。</span>
         <ul class="tiers">
@@ -373,7 +383,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
           <li><b class="num">20～40</b><span>有方向，趨勢正在增強</span></li>
           <li><b class="num">&gt; 40</b><span>強趨勢</span></li>
         </ul>
-        <span class="hp">搭配 ER 看：ER 低、ADX 也低，兩者都說是震盪；ER 低、ADX 高，代表中間有過一段強烈的單邊走勢，請看線圖確認。</span>
+        <span class="hp">搭配 ER 看：兩者落在同一段，代表看法一致；落在不同段，數據卡下方會標示「分歧」並說明可能的原因。</span>
       </div>
       <div class="two">
         <div class="card chartbox">
@@ -533,10 +543,10 @@ function reasons(c){
   if (r2(d.atrPct) < f.atrMin) r.push(["warn","波動太低"]);
   if (r2(d.atrPct) > f.atrMax) r.push(["warn","波動太高"]);
   if (S.mk === "spot"){
-    if (d.er > f.er) r.push(["warn","單邊過強"]);
+    if (d.er > f.er) r.push(["warn","強趨勢"]);
   } else {
     if (d.er < f.erLo) r.push(["warn","震盪，適合中性（進階）"]);
-    if (d.er > f.erHi) r.push(["warn","單邊過強"]);
+    if (d.er > f.erHi) r.push(["warn","強趨勢"]);
   }
   return r;
 }
@@ -595,7 +605,7 @@ function renderTable(){
     const d = c.tf[S.tf];
     const erW = Math.min(100, d.er*100);
     const avail = (c.spot ? `<span class="tag ${S.mk==="spot"?"ok":"dim"}">現貨</span>` : "") + (c.perp ? `<span class="tag ${S.mk==="perp"?"ok":"dim"}">合約</span>` : "");
-    const okTxt = S.mk === "perp" ? (d.er < 0.3 ? "初步通過・震盪" : `初步通過・${trendDir(c) === "long" ? "做多" : "做空"}`) : "初步通過";
+    const okTxt = S.mk === "perp" ? (erLv(d.er) === 0 ? "初步通過・震盪" : `初步通過・${trendDir(c) === "long" ? "做多" : "做空"}`) : "初步通過";
     const st = r.length ? r.map(([t, s]) => `<span class="tag ${t}">${s}</span>`).join("") : `<span class="tag ok">${okTxt}</span>`;
     return `<tr class="${r.length?"fail":""}" data-sym="${esc(c.sym)}" tabindex="0">
       <td class="num mh">${c.rank}</td>
@@ -828,13 +838,11 @@ function renderCoin(){
   const erTxt = LV[erLv(d.er)];
   const adxTxt = d.adx == null ? "資料不足" : LV[adxLv(d.adx)];
   const cs = consensus(d, c);
-  const g0 = calc(c);
   $("#cStats").innerHTML = [
     ["ATR%(30)", pct(d.atrPct), `平均每根 K 線波動 ${fp(d.atr)}`, "atrHint"],
     ["ER(30)", d.er.toFixed(2), erTxt, "h-er", cs && cs.cls],
-    ["ADX(14)", d.adx != null ? d.adx.toFixed(1) : "—", adxTxt, "h-adx", cs && cs.cls],
-    [`近 ${S.look} 根高／低`, `${fp(g0.hiX)}`, `低點 ${fp(g0.loX)}`]
-  ].concat(c.yr ? [[c.yr.days >= 365 ? "近 1 年高／低" : `上市以來高／低（${c.yr.days} 天）`, fp(c.yr.hi), `低點 ${fp(c.yr.lo)}`]] : []).map(([k, v, h, hid, cl]) => `<div class="stat${cl ? " cs-" + cl : ""}"><div class="k">${k}${hid ? `<button type="button" class="ib keep" data-help="${hid}" aria-label="說明">i</button>` : ""}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join("");
+    ["ADX(14)", d.adx != null ? d.adx.toFixed(1) : "—", adxTxt, "h-adx", cs && cs.cls]
+  ].concat(c.yr ? [[c.yr.days >= 365 ? "近 1 年高／低" : `上市以來高／低（${c.yr.days} 天）`, fp(c.yr.hi), `低點 ${fp(c.yr.lo)}`, "h-yr"]] : []).map(([k, v, h, hid, cl]) => `<div class="stat${cl ? " cs-" + cl : ""}"><div class="k">${k}${hid ? `<button type="button" class="ib keep" data-help="${hid}" aria-label="說明">i</button>` : ""}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join("");
   const cbox = $("#consensus");
   cbox.hidden = !cs;
   if (cs){ cbox.className = "consensus cs-" + cs.cls; cbox.innerHTML = `<b>${cs.title}</b><span>${cs.text}</span>`; }
@@ -1095,7 +1103,14 @@ function openPop(btn){
 document.addEventListener("click", e => {
   const b = e.target.closest("button.ib[data-help]");
   if (b){ e.preventDefault(); e.stopPropagation(); openPop(b); return; }
-  if (popFor && !e.target.closest("#pop")) closePop();
+  if (!popFor) return;
+  if (e.target.closest("#pop")){
+    if (e.target.closest("a")) return;
+    const under = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.matches && x.matches("button.ib[data-help]"));
+    if (under && under !== popFor) openPop(under); else closePop();
+    return;
+  }
+  closePop();
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closePop(); });
 const HKEY = "gridsop:help", TKEY = "gridsop:helpTipSeen";
