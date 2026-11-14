@@ -60,10 +60,29 @@ perp = get("https://api.pionex.com/api/v1/common/symbols", {"type": "PERP"})["da
 spot_map = {s["symbol"].rsplit("_", 1)[0].upper(): s for s in spot if s["quoteCurrency"] == "USDT"}
 perp_map = {s["symbol"].split("_")[0].upper(): s for s in perp if s["symbol"].endswith("_USDT_PERP")}
 SPOT_ALIAS = {"GRAM": "TON"}
-# 派網 App 可開現貨網格、但公開 API 現貨清單完全沒有的幣（人工到 App 確認，2026-11-14）
+
+
+def load_manual(path="spot_manual.txt"):
+    """讀取人工確認名單：[可開現貨] 與 [不能開現貨] 兩段，每行一個代號。"""
+    yes, no, cur = set(), set(), None
+    try:
+        for line in open(path, encoding="utf-8"):
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
+            if line.startswith("["):
+                cur = yes if "可開" in line else no if "不能" in line else None
+            elif cur is not None:
+                cur.add(line.split()[0].upper())
+    except FileNotFoundError:
+        print("找不到", path, "，不使用人工名單")
+    return yes, no
+
+
+# 派網 App 可開現貨網格、但公開 API 現貨清單完全沒有的幣，名單見 spot_manual.txt
 # 這些幣的現貨模式改用合約 K 線計算，每格數量的最小單位以派網顯示為準
-# 已確認不能開現貨：CC、BTW、VVV、XMR。MORPHO App 有現貨，但 API 沒有任何 K 線，無法計算
-SPOT_MANUAL = {"PUMP", "GRAM", "MNT", "SKY", "RENDER", "NIGHT", "LIT", "ZRO"}
+SPOT_MANUAL, SPOT_NO = load_manual(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spot_manual.txt"))
+unconfirmed = []   # 有合約、API 沒現貨、名單也沒列的幣，交給 GitHub 待辦提醒人工確認
 
 tick = get("https://api.pionex.com/api/v1/market/tickers", {"type": "SPOT"})["data"]["tickers"]
 spot_amt = {t["symbol"]: float(t.get("amount") or 0) for t in tick}
@@ -193,6 +212,8 @@ for c in cg:
     ssym = SPOT_ALIAS.get(sym, sym)
     api_spot, has_perp = ssym in spot_map, sym in perp_map
     has_spot = api_spot or sym in SPOT_MANUAL
+    if has_perp and not has_spot and sym not in SPOT_NO:
+        unconfirmed.append(sym)
     if not (has_spot or has_perp):
         excluded.append({**base, "reason": "派網未上架"}); continue
     srcs = ([f"{ssym}_USDT"] if api_spot else []) + ([f"{sym}_USDT_PERP"] if has_perp else [])
@@ -239,7 +260,9 @@ if len(coins) < 20:
 
 out = {"updated": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="minutes"),
        "params": {"atr": ATR_N, "er": ER_N, "adx": ADX_N},
-       "coins": coins, "excluded": excluded}
+       "coins": coins, "excluded": excluded, "unconfirmed": unconfirmed}
 with open(OUT, "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 print(len(coins), "coins,", len(excluded), "excluded")
+if unconfirmed:
+    print("待人工確認現貨：", "、".join(unconfirmed))
