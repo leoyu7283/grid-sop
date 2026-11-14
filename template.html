@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem("gridsop:theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
 :root{
   --paper:#EEF1F4; --panel:#FFFFFF; --ink:#16202E; --muted:#5C6878; --line:#D4DAE1;
@@ -16,6 +17,7 @@
   --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  --on-accent:#FFFFFF;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
@@ -23,6 +25,7 @@
     --paper:#11161D; --panel:#19202A; --ink:#E4E9EF; --muted:#94A0AF; --line:#2C3542;
     --accent:#6FA2F0; --accent-soft:rgba(111,162,240,.14); --band:rgba(111,162,240,.09);
     --warn:#E0A650; --warn-soft:#33291A; --bad:#E57C88; --bad-soft:#3A1F24; --good:#6CC49A; --good-soft:#1B3128;
+    --on-accent:#0E1620;
     color-scheme:dark;
   }
 }
@@ -30,6 +33,7 @@
   --paper:#11161D; --panel:#19202A; --ink:#E4E9EF; --muted:#94A0AF; --line:#2C3542;
   --accent:#6FA2F0; --accent-soft:rgba(111,162,240,.14); --band:rgba(111,162,240,.09);
   --warn:#E0A650; --warn-soft:#33291A; --bad:#E57C88; --bad-soft:#3A1F24; --good:#6CC49A; --good-soft:#1B3128;
+  --on-accent:#0E1620;
   color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:inherit}
@@ -61,7 +65,7 @@ nav.steps .wrap{display:flex;gap:0;overflow-x:auto}
 nav.steps button{border:0;background:none;cursor:pointer;padding:14px 18px 12px;display:flex;gap:10px;align-items:baseline;border-bottom:3px solid transparent;white-space:nowrap;color:var(--muted)}
 nav.steps button b{font-family:var(--num);font-weight:600;font-size:13px;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor}
 nav.steps button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:700}
-nav.steps button[aria-selected="true"] b{background:var(--accent);border-color:var(--accent);color:#fff}
+nav.steps button[aria-selected="true"] b{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 nav.steps .picked{margin-left:auto;align-self:center;font-size:13px;color:var(--muted);white-space:nowrap;padding-left:16px}
 
 main{padding:28px 0 56px}
@@ -81,6 +85,7 @@ div.help{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:4px}
 .tiers li{margin-bottom:2px}
 .helpsw{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:13px;color:var(--muted)}
 .helpsw .ib{margin:0;pointer-events:none}
+.themesw{padding:5px 10px;margin-right:8px;font-size:14px}
 .helpsw[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:600}
 .helpsw[aria-pressed="true"] .ib{border-color:var(--panel);color:var(--panel)}
 .helptip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:13.5px;background:var(--accent-soft);color:var(--ink);border-radius:8px;padding:8px 14px;margin:0 0 14px}
@@ -239,7 +244,7 @@ body.show-help button.ib.keep[data-help]{display:inline-grid}
 .go.ready small{flex-basis:100%;font-weight:400;font-size:13px}
 .go.wait{background:var(--paper);border:1px dashed var(--line);color:var(--muted)}
 .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px}
-.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .empty{padding:40px 20px;text-align:center;color:var(--muted);background:var(--panel);border:1px dashed var(--line);border-radius:10px}
 
 footer p{margin:0 0 6px}
@@ -288,7 +293,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
         <button data-mk="spot">現貨網格</button><button data-mk="perp">合約網格</button>
       </div>
     </div>
-    <div class="ctrl"><button type="button" class="helpsw" id="helpSw" aria-pressed="false"><span class="ib" aria-hidden="true">i</span>顯示說明</button></div>
+    <div class="ctrl"><button type="button" class="helpsw themesw" id="themeSw" aria-label="切換淺色／深色"></button><button type="button" class="helpsw" id="helpSw" aria-pressed="false"><span class="ib" aria-hidden="true">i</span>顯示說明</button></div>
   </div>
 </header>
 
@@ -1167,6 +1172,22 @@ function hideHelpTip(){ $("#helpTip").hidden = true; lsSet(TKEY, "1"); }
 setHelp(lsGet(HKEY) === "1");
 $("#helpTip").hidden = !!lsGet(TKEY);
 $("#helpTipX").onclick = hideHelpTip;
+// 淺色／深色切換：沒選過時跟著系統設定，選過就記住
+const THKEY = "gridsop:theme";
+const sysDark = () => window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;
+function curTheme(){ return document.documentElement.dataset.theme || (sysDark() ? "dark" : "light"); }
+function paintThemeBtn(){
+  const dark = curTheme() === "dark";
+  $("#themeSw").textContent = dark ? "☀︎ 淺色" : "☾ 深色";
+  $("#themeSw").title = dark ? "切換成淺色" : "切換成深色";
+}
+{ const t = lsGet(THKEY); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; }
+paintThemeBtn();
+if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", paintThemeBtn);
+$("#themeSw").onclick = () => {
+  const next = curTheme() === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next; lsSet(THKEY, next); paintThemeBtn();
+};
 $("#helpSw").onclick = () => { const on = !document.body.classList.contains("show-help"); setHelp(on); lsSet(HKEY, on ? "1" : "0"); hideHelpTip(); };
 window.addEventListener("scroll", () => { if (popFor) placePop(popFor); }, {passive:true});
 
