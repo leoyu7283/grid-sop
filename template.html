@@ -233,7 +233,10 @@ body.show-help button.ib.keep[data-help]{display:inline-grid}
 .progress .bar{flex:1;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
 .progress .bar i{display:block;height:100%;background:var(--good);transition:width .25s}
 .go{margin-top:18px;padding:14px 18px;border-radius:10px;font-weight:500}
-.go.ready{background:var(--good-soft);color:var(--good)}
+.go.ready{background:var(--good-soft);color:var(--good);display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.go.ready span{flex:1 1 220px}
+.gobtn{background:var(--good);color:var(--panel);text-decoration:none;font-weight:700;padding:8px 16px;border-radius:8px;white-space:nowrap}
+.go.ready small{flex-basis:100%;font-weight:400;font-size:13px}
 .go.wait{background:var(--paper);border:1px dashed var(--line);color:var(--muted)}
 .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px}
 .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -1004,7 +1007,10 @@ function renderCheck(){
   $("#progN").textContent = `${done} / ${items.length}`;
   $("#progBar").style.width = (done/items.length*100) + "%";
   const go = $("#go");
-  if (done === items.length){ go.className = "go ready"; go.textContent = "全部確認完成，可以到派網建立機器人了。"; }
+  if (done === items.length){
+    go.className = "go ready";
+    go.innerHTML = `<span>全部確認完成，可以到派網建立機器人了。</span><a class="gobtn" href="https://accounts.pionex.com/zh-TW/signUp?r=imoweekly" target="_blank" rel="noopener">前往派網開單</a><small>還沒有派網帳號？註冊時填推薦碼 <b>imoweekly</b>。</small>`;
+  }
   else {
     const autoFail = items.filter(it => it.auto === false);
     go.className = "go wait";
