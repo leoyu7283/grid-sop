@@ -242,6 +242,8 @@ body.show-help button.ib.keep[data-help]{display:inline-grid}
 .go.ready span{flex:1 1 220px}
 .gobtn{background:var(--good);color:var(--panel);text-decoration:none;font-weight:700;padding:8px 16px;border-radius:8px;white-space:nowrap}
 .go.ready small{flex-basis:100%;font-weight:400;font-size:13px}
+.go.ready small.follow{margin-top:-4px}
+.go.ready small.follow a{color:inherit;font-weight:600}
 .go.wait{background:var(--paper);border:1px dashed var(--line);color:var(--muted)}
 .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px}
 .btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
@@ -1044,7 +1046,7 @@ function renderCheck(){
   const go = $("#go");
   if (done === items.length){
     go.className = "go ready";
-    go.innerHTML = `<span>全部確認完成，可以到派網建立機器人了。</span><a class="gobtn" href="https://accounts.pionex.com/zh-TW/signUp?r=imoweekly" target="_blank" rel="noopener">前往派網開單</a><small>還沒有派網帳號？註冊時填推薦碼 <b>imoweekly</b>。</small>`;
+    go.innerHTML = `<span>全部確認完成，可以到派網建立機器人了。</span><a class="gobtn" href="https://accounts.pionex.com/zh-TW/signUp?r=imoweekly" target="_blank" rel="noopener">前往派網開單</a><small>還沒有派網帳號？註冊時填推薦碼 <b>imoweekly</b>。</small><small class="follow">網格策略持續在 IG 連載更新，<a href="https://www.instagram.com/imo_weekly/" target="_blank" rel="noopener">追蹤 @imo_weekly</a>。</small>`;
   }
   else {
     const autoFail = items.filter(it => it.auto === false);
