@@ -505,7 +505,8 @@ function spanText(n){
   return `約 ${Math.round(d*24)} 小時`;
 }
 const tfCoins = () => DATA.coins.filter(c => c.tf[S.tf]);
-const curCoin = () => { const c = byS[S.sym]; return c && c.tf[S.tf] ? c : null; };
+// 目前模式（現貨／合約）派網沒有開的幣，不進入第 2、3 步
+const curCoin = () => { const c = byS[S.sym]; return c && c.tf[S.tf] && c[S.mk] ? c : null; };
 const S = {
   tf:"1D", mk:"spot", step:1, sort:{key:null, dir:1}, showFail:false,
   f:{ "4H":{...DEF["4H"]}, "1D":{...DEF["1D"]}, "1W":{...DEF["1W"]} },
@@ -840,13 +841,15 @@ function atrChart(c){
 function renderCoin(){
   const c = curCoin();
   $("#s2empty").hidden = !!c; $("#s2body").hidden = !c;
-  $("#s2emptyMsg").textContent = S.sym && byS[S.sym] ? `${S.sym} 上市時間太短，沒有足夠的${TF[S.tf].name}資料，請切換 K 線週期或換一個幣。` : "先在第 1 步選一個幣。";
+  const mkN = S.mk === "spot" ? "現貨" : "合約", mkO = S.mk === "spot" ? "合約" : "現貨";
+  $("#s2emptyMsg").textContent = S.sym && byS[S.sym] && !byS[S.sym][S.mk] ? `派網沒有 ${S.sym} ${mkN}，無法開${mkN}網格。請切換到${mkO}，或回第 1 步換一個幣。`
+    : S.sym && byS[S.sym] ? `${S.sym} 上市時間太短，沒有足夠的${TF[S.tf].name}資料，請切換 K 線週期或換一個幣。` : "先在第 1 步選一個幣。";
   if (!c){ closePop(); return; }
   const d = c.tf[S.tf], r = reasons(c);
   $("#cName").innerHTML = `${esc(c.sym)}<small>${esc(c.name)}・市值第 ${c.rank} 名</small>`;
   $("#cPx").textContent = fp(d.price) + " USDT";
   $("#cTags").innerHTML = r.length ? r.map(([t, s]) => `<span class="tag ${t}">${s}</span>`).join("") : `<span class="tag ok">初步通過</span>`;
-  const opts = tfCoins().slice().sort((a,b)=>a.rank-b.rank).map(x => `<option value="${esc(x.sym)}" ${x.sym===c.sym?"selected":""}>${esc(x.sym)}${reasons(x).length?"":" ✓"}</option>`).join("");
+  const opts = tfCoins().filter(x => x[S.mk]).slice().sort((a,b)=>a.rank-b.rank).map(x => `<option value="${esc(x.sym)}" ${x.sym===c.sym?"selected":""}>${esc(x.sym)}${reasons(x).length?"":" ✓"}</option>`).join("");
   $("#cSel").innerHTML = opts;
   const erTxt = LV[erLv(d.er)];
   const adxTxt = d.adx == null ? "資料不足" : LV[adxLv(d.adx)];
