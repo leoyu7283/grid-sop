@@ -50,7 +50,7 @@ header.top{border-bottom:1px solid var(--line);background:var(--panel)}
 .chhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;margin-bottom:10px}
 .chhead h3{margin:0}
 .seg.sm button{padding:3px 11px;font-size:13px}
-.seg button{border:0;background:transparent;padding:6px 14px;cursor:pointer;font-size:14px;color:var(--muted)}
+.seg button{border:0;background:transparent;padding:6px 14px;cursor:pointer;font-size:14px;color:var(--muted);white-space:nowrap}
 .seg button.locked{opacity:.4;cursor:not-allowed;text-decoration:line-through;text-decoration-color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel);font-weight:700}
 .ctrl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
@@ -198,14 +198,18 @@ body.show-help button.ib.keep[data-help]{display:inline-grid}
 .pcard header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:var(--ink);color:var(--panel)}
 .pcard header b{font-size:15px}
 .pcard header button{border:1px solid currentColor;background:none;color:inherit;border-radius:6px;padding:3px 12px;cursor:pointer;font-size:13px}
-.pcard dl{margin:0;display:grid;grid-template-columns:auto 1fr}
+.pcard dl{margin:0;display:grid;grid-template-columns:1fr auto}
+.pcard dd{white-space:nowrap}
 .pcard dt,.pcard dd{padding:8px 16px;border-bottom:1px solid var(--line);margin:0}
 .pcard dt{color:var(--muted);font-size:14px}
 .pcard dd{text-align:right;font-family:var(--num);font-weight:600;font-variant-numeric:tabular-nums}
 .pcard dd.txt{font-family:var(--body)}
 .pcard dl > :nth-last-child(-n+2){border-bottom:0}
+.pcard dt.sec{grid-column:1/-1;background:var(--paper);color:var(--ink);font-weight:700;font-size:13.5px;padding:7px 16px}
+.pcard dt.sec small{font-weight:400;color:var(--muted);margin-left:6px}
 .warns{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px}
 .warns li{font-size:13.5px;padding:7px 12px;border-radius:6px;line-height:1.5}
+.stamp.stale{color:var(--warn);font-weight:600}
 .warns li.w{background:var(--warn-soft);color:var(--warn)}
 .warns li.b{background:var(--bad-soft);color:var(--bad)}
 .warns li.g{background:var(--good-soft);color:var(--good)}
@@ -247,6 +251,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
 }
 @media (max-width:640px){
   .mh{display:none}
+  #showSeg button{padding:3px 8px}
   .stats{grid-template-columns:1fr 1fr}
   .stat{border-bottom:1px solid var(--line)}
   .stat:nth-child(1){order:3} .stat:nth-child(2){order:1} .stat:nth-child(3){order:2} .stat:nth-child(4){order:4}
@@ -892,24 +897,25 @@ function renderCoin(){
   // param card
   const pair = S.mk === "spot" ? `${c.sym}/USDT` : `${c.sym}/USDT 永續`;
   const netTxt = tr2(g.netLo) + "%";
+  const SEC = (t, sub) => [t, sub, "sec"];
   const rows = [
+    SEC("填進派網", "照這幾格設定"),
     ["交易對", pair, true],
     ["機器人", S.mk === "spot" ? "現貨網格" : `合約網格・${DIRN[g.dir]}`, true],
     ["價格下限", fp(g.L)], ["價格上限", fp(g.U)],
     ["網格數量", g.n], ["網格模式", "等比", true],
-    ["每格淨利（扣費後）", netTxt],
     ["投資額", S.cap.toLocaleString() + " USDT"]
   ];
-  if (S.mk === "perp"){
-    rows.push(["槓桿", g.lev + "x"]);
-    rows.push(["交易額（投資額 × 槓桿）", g.notional.toLocaleString(undefined, {maximumFractionDigits:2}) + " USDT"]);
-  }
+  if (S.mk === "perp") rows.push(["槓桿", g.lev + "x"]);
+  rows.push(SEC("試算結果", "用來對照派網顯示的數字"));
+  rows.push(["每格淨利（扣費後）", netTxt]);
+  if (S.mk === "perp") rows.push(["交易額（投資額 × 槓桿）", g.notional.toLocaleString(undefined, {maximumFractionDigits:2}) + " USDT"]);
   const qd = q => g.step ? q.toFixed(Math.max(0, Math.round(-Math.log10(g.step)))) : fp(q);
   rows.push(["每格數量", g.qty > 0 ? `${qd(g.qty)} ${esc(c.sym)}` : `約 ${g.qtyRaw.toPrecision(2)} ${esc(c.sym)}（以派網為準）`]);
   rows.push(["每格金額（下限格～上限格）", `${g.amtLo.toFixed(2)}～${g.amtHi.toFixed(2)} USDT`]);
   rows.push(["每成交一格約賺", `${fmtU(g.profLo)}～${fmtU(g.profHi)} USDT`]);
-  $("#pdl").innerHTML = rows.map(([k, v, t]) => `<dt>${k}</dt><dd class="${t?"txt":""}">${v}</dd>`).join("");
-  S._card = rows.map(([k, v]) => `${k}：${v}`).join("\n");
+  $("#pdl").innerHTML = rows.map(([k, v, t]) => t === "sec" ? `<dt class="sec">${k}<small>${v}</small></dt>` : `<dt>${k}</dt><dd class="${t?"txt":""}">${v}</dd>`).join("");
+  S._card = rows.map(([k, v, t]) => t === "sec" ? `【${k}】` : `${k}：${v}`).join("\n");
   S._g = g;
 
   // warnings
@@ -952,10 +958,21 @@ function renderCoin(){
 }
 
 // ---------- step 3 ----------
+// 第 3 步「看線圖」要看什麼：依網格方向給具體指引
+function chartGuide(c, g){
+  const dir = S.mk === "spot" ? "long" : g.dir;
+  const look = {
+    long: "看最近 10 根 K 線：沒有連續收跌，也沒有跌破前面的低點。",
+    short: "看最近 10 根 K 線：沒有連續收漲，也沒有突破前面的高點。",
+    neutral: "看最近 10 根 K 線：在區間內上下來回，沒有一路往同一個方向走。"
+  }[dir];
+  const cs = consensus(c.tf[S.tf], c);
+  return look + (cs && cs.k === "split" ? "這次 ER 和 ADX 分歧，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
+}
 function checklistItems(c, g){
   const d = c.tf[S.tf];
   const items = [
-    {id:"chart", t:"看過線圖，趨勢適合這種網格", s: (S.mk === "spot" ? "現貨網格只能做多，避開明顯下跌的走勢。" : "網格方向和近期走勢一致。") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。"},
+    {id:"chart", t:"看過線圖，走勢適合這種網格", s: chartGuide(c, g)},
     {id:"price", t:"現價在網格區間中段", s:`現價位於區間 ${Math.round(g.pos*100)}% 的位置，太靠邊界容易一開就出網。`, auto: g.pos > 0.2 && g.pos < 0.8},
     {id:"half", t:"單格利潤率低於 ATR% 的一半", s:`目前單格 ${pct(g.gross)}，ATR% 的一半是 ${pct(d.atrPct/2)}。`, auto: g.ratio <= 0.5},
   ];
@@ -1073,6 +1090,11 @@ $("#copy").onclick = async () => {
 (() => {
   const t = new Date(DATA.updated);
   $("#stamp").textContent = "資料時間 " + t.toLocaleString("zh-TW", {timeZone:"Asia/Taipei", year:"numeric", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
+  const ageH = (Date.now() - t) / 36e5;
+  if (ageH > 12){
+    $("#stamp").classList.add("stale");
+    $("#stamp").textContent += `（已超過 ${Math.floor(ageH)} 小時未更新，數字可能和派網有落差）`;
+  }
   $("#exSum").textContent = `前 100 大中已排除 ${DATA.excluded.length} 個（穩定幣、派網未上架、K 線不足）`;
   $("#exList").innerHTML = DATA.excluded.sort((a,b)=>a.rank-b.rank).map(e => `<li>#${e.rank} ${esc(e.sym)}：${esc(e.reason)}</li>`).join("");
 })();
