@@ -328,7 +328,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
           <li><b class="num">&gt; 0.6</b><span>強趨勢，先觀望。</span></li>
         </ul>
         <ul class="tiers" id="tierPerp">
-          <li><b class="num">&lt; 0.3</b><span>震盪。最適合中性網格（進階）；新手可以先開做多或做空網格，埋伏之後的趨勢。</span></li>
+          <li><b class="num">&lt; 0.3</b><span>震盪。適合中性網格（進階，請留意上下兩側的強平價）。</span></li>
           <li><b class="num">0.3～0.6</b><span>有方向。適合做多或做空網格。</span></li>
           <li><b class="num">&gt; 0.6</b><span>強趨勢，先觀望。</span></li>
         </ul>
@@ -605,7 +605,7 @@ function renderTable(){
     const d = c.tf[S.tf];
     const erW = Math.min(100, d.er*100);
     const avail = (c.spot ? `<span class="tag ${S.mk==="spot"?"ok":"dim"}">現貨</span>` : "") + (c.perp ? `<span class="tag ${S.mk==="perp"?"ok":"dim"}">合約</span>` : "");
-    const okTxt = S.mk === "perp" ? (erLv(d.er) === 0 ? "初步通過・震盪" : `初步通過・${trendDir(c) === "long" ? "做多" : "做空"}`) : "初步通過";
+    const okTxt = S.mk === "perp" ? `初步通過・${DIRN[suggestDir(c)]}` : "初步通過";
     const st = r.length ? r.map(([t, s]) => `<span class="tag ${t}">${s}</span>`).join("") : `<span class="tag ok">${okTxt}</span>`;
     return `<tr class="${r.length?"fail":""}" data-sym="${esc(c.sym)}" tabindex="0">
       <td class="num mh">${c.rank}</td>
@@ -619,7 +619,8 @@ function renderTable(){
 }
 
 // ---------- grid calc ----------
-function suggestDir(c){ return trendDir(c); }
+// 合約「自動」方向：ER 和 ADX 都顯示震盪時選中性，其餘依近 30 根漲跌選做多／做空
+function suggestDir(c){ const cs = consensus(c.tf[S.tf], c); return cs && cs.k === "range" ? "neutral" : trendDir(c); }
 const DIRN = {long:"做多", short:"做空", neutral:"中性"};
 // 「自動」方向的說明句，跟著共識列的狀態走
 function dirNote(c, d, g){
@@ -627,7 +628,7 @@ function dirNote(c, d, g){
   const cs = consensus(d, c);
   if (!cs) return `目前採用：${D}。${mv}。ADX 資料不足，請先看線圖確認再開單。`;
   const k = cs.k;
-  if (k === "range") return `目前採用：${D}。ER 和 ADX 都顯示震盪，最適合的是中性網格，但中性網格屬進階、兩側都有爆倉風險。新手版先依${mv} 採用${D}，這個方向只當埋伏參考。`;
+  if (k === "range") return `目前採用：${D}。ER 和 ADX 都顯示震盪，適合中性網格。中性屬進階，請留意上下兩側的強平價。`;
   if (k === "dir") return `目前採用：${D}。ER 和 ADX 都顯示有方向，${mv}，方向和指標一致。`;
   if (k === "strong") return `目前採用：${D}。ER 和 ADX 都顯示強趨勢，建議先觀望；如果還是要開，依${mv} 採用${D}。`;
   return `目前採用：${D}。兩指標分歧，方向參考性較低。${mv}，請先看線圖確認再開單。`;
@@ -936,8 +937,8 @@ function renderCoin(){
     if (d.er >= 0.3 && chg30(c) < 0) w.push(["b", `近 30 根下跌 ${Math.abs(chg30(c)).toFixed(1)}%，有明顯方向。現貨網格只能做多，會邊跌邊買、容易被套，先看清楚線圖再決定。`]);
     if (d.er >= 0.3 && chg30(c) >= 0) w.push(["w", `近 30 根上漲 ${chg30(c).toFixed(1)}%，有明顯方向。現貨網格會邊漲邊賣，獲利可能不如直接持有。`]);
   } else {
-    if (g.dir === "neutral") w.push(["b", "中性網格上下兩側都有爆倉風險，不建議新手使用。"]);
-    if (g.dir !== "neutral" && g.dir !== suggestDir(c)) w.push(["w", `你選的方向和指標建議（${DIRN[suggestDir(c)]}）不同。`]);
+    if (g.dir === "neutral") w.push(["w", "中性網格上下兩側都有爆倉風險，請確認派網顯示的上下兩個強平價都在網格區間外。"]);
+    if (g.dir !== suggestDir(c)) w.push(["w", `你選的方向和指標建議（${DIRN[suggestDir(c)]}）不同。`]);
     w.push(["w", "合約另有資金費率，通常每 8 小時結算一次，可能是支出，也可能是收入。持倉時間長的話，記得把它算進成本。"]);
   }
   if (g.n > 1000) w.push(["b", `格數 ${g.n} 格，超過派網上限 1000 格。請調高單格利潤率或縮小網格區間。`]);
