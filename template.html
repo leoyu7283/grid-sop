@@ -653,6 +653,10 @@ function consensus(d, c){
     if (e === 0) return {k:"range", cls:"ok", title:"兩指標一致：震盪", text:"ER 和 ADX 都顯示震盪，適合網格。"};
     if (e === 1){
       let t = "適合做多或做空網格。";
+      if (S.mk === "perp" && c){
+        const ch = chg30(c);
+        t = `近 30 根 K 線${ch >= 0 ? "上漲" : "下跌"} ${Math.abs(ch).toFixed(1)}%，適合${ch >= 0 ? "做多" : "做空"}網格。`;
+      }
       if (S.mk === "spot" && c){
         const ch = chg30(c), m = Math.abs(ch).toFixed(1);
         t = ch < 0 ? `但近 30 根 K 線下跌 ${m}%。現貨網格只能做多，方向不利，建議觀望或改用合約做空。`
