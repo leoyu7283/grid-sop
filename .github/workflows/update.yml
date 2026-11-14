@@ -58,41 +58,44 @@ jobs:
         with:
           script: |
             const fs = require("fs");
-            const list = JSON.parse(fs.readFileSync("data.json", "utf8")).unconfirmed || [];
+            const d = JSON.parse(fs.readFileSync("data.json", "utf8"));
+            const list = d.unconfirmed || [], lost = d.manualLost || [];
             const { owner, repo } = context.repo;
             const label = "待確認現貨";
             const open = (await github.rest.issues.listForRepo({ owner, repo, state: "open", labels: label })).data;
-            if (!list.length) {
+            if (!list.length && !lost.length) {
               for (const i of open) {
                 await github.rest.issues.createComment({ owner, repo, issue_number: i.number, body: "名單都確認完了，自動關閉。" });
                 await github.rest.issues.update({ owner, repo, issue_number: i.number, state: "closed" });
               }
               return;
             }
-            const title = `請到派網 App 確認能不能開現貨網格：${list.join("、")}`;
             const fileUrl = `https://github.com/${owner}/${repo}/edit/main/spot_manual.txt`;
-            const body = [
-              `@${owner} 前 100 大有新幣「有合約，但派網公開資料沒有現貨」，網站目前先當作只有合約：`,
-              "",
-              ...list.map(s => `- [ ] ${s}`),
-              "",
-              "請到派網 App 搜尋這些幣，看能不能開**現貨網格**，然後：",
-              `1. 打開 [spot_manual.txt](${fileUrl})`,
-              "2. 能開的加到 `[可開現貨]`，不能開的加到 `[不能開現貨]`，每行一個代號",
-              "3. 按右上角 Commit changes 存檔",
-              "",
-              "存檔後網站會自動重新抓資料並部署，名單都確認完，這則待辦會自動關閉。"
-            ].join("\n");
+            const parts = [];
+            if (list.length) parts.push("確認現貨：" + list.join("、"));
+            if (lost.length) parts.push("合約已下架：" + lost.join("、"));
+            const title = "派網現貨名單需要更新（" + parts.join("；") + "）";
+            const body = [`@${owner} 請到派網 App 確認以下幣種，然後打開 [spot_manual.txt](${fileUrl}) 修改，按右上角 Commit changes 存檔。`, ""];
+            if (list.length) body.push(
+              "### 新幣：有合約，但派網公開資料沒有現貨",
+              "網站目前先當作只有合約。請在 App 查能不能開**現貨網格**：能開的加到 `[可開現貨]`，不能開的加到 `[不能開現貨]`。", "",
+              ...list.map(s => `- [ ] ${s}`), "");
+            if (lost.length) body.push(
+              "### 人工名單上的幣，合約已經下架",
+              "這些幣的現貨是借用合約 K 線計算的，合約下架後網站拿不到資料，已暫時從網站移除。請在 App 查現貨還在不在：已經下架的，從 `[可開現貨]` 移到 `[不能開現貨]`；現貨還在的，維持不動（網站暫時無法顯示）。", "",
+              ...lost.map(s => `- [ ] ${s}`), "");
+            body.push("存檔後網站會自動重新抓資料並部署，名單都處理完，這則待辦會自動關閉。");
+            const text = body.join("\n");
             if (open.length) {
               const i = open[0];
               if (i.title !== title) {
-                await github.rest.issues.update({ owner, repo, issue_number: i.number, title, body });
-                await github.rest.issues.createComment({ owner, repo, issue_number: i.number, body: `@${owner} 待確認名單更新為：${list.join("、")}` });
+                await github.rest.issues.update({ owner, repo, issue_number: i.number, title, body: text });
+                await github.rest.issues.createComment({ owner, repo, issue_number: i.number, body: `@${owner} 待辦內容更新：${parts.join("；")}` });
               }
               return;
             }
             try { await github.rest.issues.createLabel({ owner, repo, name: label, color: "E0A650" }); } catch (e) {}
-            await github.rest.issues.create({ owner, repo, title, body, labels: [label] });
+            await github.rest.issues.create({ owner, repo, title, body: text, labels: [label] });
 
       - name: 失敗：沿用上一次成功的資料
         if: steps.fetch.outcome != 'success'

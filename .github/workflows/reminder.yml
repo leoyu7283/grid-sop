@@ -1,0 +1,45 @@
+name: 每季提醒確認現貨人工名單
+
+on:
+  schedule:
+    # 每年 1、4、7、10 月 1 日，台灣時間上午 9:37
+    - cron: "37 1 1 1,4,7,10 *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            // 讀出 spot_manual.txt 的 [可開現貨] 段落
+            let cur = null; const yes = [];
+            for (let line of fs.readFileSync("spot_manual.txt", "utf8").split("\n")) {
+              line = line.split("#")[0].trim();
+              if (!line) continue;
+              if (line.startsWith("[")) { cur = line.includes("可開") ? "yes" : null; continue; }
+              if (cur === "yes") yes.push(line.split(/\s+/)[0].toUpperCase());
+            }
+            if (!yes.length) return;
+            const { owner, repo } = context.repo;
+            const label = "季度確認";
+            const fileUrl = `https://github.com/${owner}/${repo}/edit/main/spot_manual.txt`;
+            const body = [
+              `@${owner} 每季例行確認：以下幣種是人工確認「派網 App 可開現貨網格」的，派網公開資料沒有它們的現貨，網站無法自動得知是否下架。`,
+              "",
+              "請到派網 App 逐一確認還能不能開**現貨網格**，確認完勾選：",
+              "",
+              ...yes.map(s => `- [ ] ${s}`),
+              "",
+              `如果有幣已經不能開，打開 [spot_manual.txt](${fileUrl})，把它從 \`[可開現貨]\` 移到 \`[不能開現貨]\`，按 Commit changes 存檔。都還能開的話，直接關閉這則待辦即可。`
+            ].join("\n");
+            try { await github.rest.issues.createLabel({ owner, repo, name: label, color: "6E7781" }); } catch (e) {}
+            const d = new Date(Date.now() + 8 * 3600e3);
+            await github.rest.issues.create({ owner, repo, title: `每季確認：派網現貨人工名單（${d.getUTCFullYear()} 年 ${d.getUTCMonth() + 1} 月）`, body, labels: [label] });

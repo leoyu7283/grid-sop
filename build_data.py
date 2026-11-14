@@ -83,6 +83,13 @@ def load_manual(path="spot_manual.txt"):
 # 這些幣的現貨模式改用合約 K 線計算，每格數量的最小單位以派網顯示為準
 SPOT_MANUAL, SPOT_NO = load_manual(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spot_manual.txt"))
 unconfirmed = []   # 有合約、API 沒現貨、名單也沒列的幣，交給 GitHub 待辦提醒人工確認
+manual_lost = []   # 人工名單上、但合約已下架（取不到 K 線）的幣
+stale = []         # K 線超過 STALE_DAYS 天沒更新、視為停止交易的交易對
+STALE_DAYS = 3
+
+
+def fresh(ks):
+    return (time.time() * 1000 - ks[-1]["t"]) < STALE_DAYS * 86400 * 1000
 
 tick = get("https://api.pionex.com/api/v1/market/tickers", {"type": "SPOT"})["data"]["tickers"]
 spot_amt = {t["symbol"]: float(t.get("amount") or 0) for t in tick}
@@ -211,12 +218,33 @@ for c in cg:
         excluded.append({**base, "reason": "穩定幣" if cls == "stable" else "包裝／質押幣"}); continue
     ssym = SPOT_ALIAS.get(sym, sym)
     api_spot, has_perp = ssym in spot_map, sym in perp_map
+    # 日線（長歷史，同時用來合成週線）。現貨優先；K 線超過 STALE_DAYS 天沒更新，視為該交易對已停止交易
+    srcs = ([f"{ssym}_USDT"] if api_spot else []) + ([f"{sym}_USDT_PERP"] if has_perp else [])
+    daily, src_used = [], None
+    for src in srcs:
+        try:
+            daily = fetch_daily_long(src)
+        except Exception as e:
+            print("fail", src, "1D", e); daily = []
+        if daily and not fresh(daily):
+            print("stale", src, "最後一根", datetime.datetime.fromtimestamp(daily[-1]["t"] / 1000, datetime.timezone.utc).date())
+            stale.append(src)
+            if src.endswith("_PERP"):
+                has_perp = False
+            else:
+                api_spot = False
+            daily = []; continue
+        if len(daily) >= MIN_BARS:
+            src_used = src; break
     has_spot = api_spot or sym in SPOT_MANUAL
     if has_perp and not has_spot and sym not in SPOT_NO:
         unconfirmed.append(sym)
+    if sym in SPOT_MANUAL and not has_perp:
+        manual_lost.append(sym)   # 人工名單的幣靠合約 K 線計算，合約下架後就沒有資料
     if not (has_spot or has_perp):
         excluded.append({**base, "reason": "派網未上架"}); continue
-    srcs = ([f"{ssym}_USDT"] if api_spot else []) + ([f"{sym}_USDT_PERP"] if has_perp else [])
+    if src_used is None and sym in manual_lost:
+        excluded.append({**base, "reason": "派網合約已下架，取不到 K 線"}); continue
     entry = {**base, "spot": has_spot, "perp": has_perp,
              "spotManual": has_spot and not api_spot,
              "pionexVol": spot_amt.get(f"{ssym}_USDT"),
@@ -228,15 +256,6 @@ for c in cg:
                           "minNotional": float(perp_map[sym].get("minNotional") or 1)} if has_perp else None,
              },
              "tf": {}}
-    # 日線（長歷史，同時用來合成週線）
-    daily, src_used = [], None
-    for src in srcs:
-        try:
-            daily = fetch_daily_long(src)
-        except Exception as e:
-            print("fail", src, "1D", e); daily = []
-        if len(daily) >= MIN_BARS:
-            src_used = src; break
     if len(daily) < MIN_BARS:
         excluded.append({**base, "reason": f"上市不足 {MIN_BARS} 天"}); continue
     entry["tf"]["1D"] = pack(daily)
@@ -260,9 +279,13 @@ if len(coins) < 20:
 
 out = {"updated": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="minutes"),
        "params": {"atr": ATR_N, "er": ER_N, "adx": ADX_N},
-       "coins": coins, "excluded": excluded, "unconfirmed": unconfirmed}
+       "coins": coins, "excluded": excluded, "unconfirmed": unconfirmed, "manualLost": manual_lost, "stale": stale}
 with open(OUT, "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
 print(len(coins), "coins,", len(excluded), "excluded")
 if unconfirmed:
     print("待人工確認現貨：", "、".join(unconfirmed))
+if manual_lost:
+    print("人工名單的幣合約已下架：", "、".join(manual_lost))
+if stale:
+    print("K 線停止更新，視為下架：", "、".join(stale))
