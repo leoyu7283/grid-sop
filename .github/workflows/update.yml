@@ -2,9 +2,9 @@ name: 更新資料並部署
 
 on:
   schedule:
-    # 每小時的第 23 分執行。GitHub 的排程在尖峰時段（尤其整點附近）常延遲或被略過，
-    # 所以排得比需要的密一點，並避開整點，確保資料不會落後超過幾小時。
-    - cron: "23 * * * *"
+    # 主要排程由外部 cron-job.org 每 15 分鐘呼叫 workflow_dispatch 觸發（2026-11-15 起）。
+    # 這裡的 GitHub 排程只當備援：每 6 小時一次，萬一外部排程停擺，資料也不會停更。
+    - cron: "23 */6 * * *"
   workflow_dispatch:
   push:
     branches: [main]
