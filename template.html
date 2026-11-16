@@ -520,9 +520,9 @@ const _btc = DATA.coins.find(c => c.sym === "BTC");
 const r2 = x => Math.round(x * 100) / 100;
 const btcFloor = (tf, fb) => _btc && _btc.tf[tf] ? r2(_btc.tf[tf].atrPct) : fb;
 const DEF = {
-  "4H": {vol:3, atrMin:btcFloor("4H", 0.8), atrMax:10, er:0.6, erLo:0, erHi:0.6},
-  "1D": {vol:3, atrMin:btcFloor("1D", 2), atrMax:20, er:0.6, erLo:0, erHi:0.6},
-  "1W": {vol:3, atrMin:btcFloor("1W", 6), atrMax:60, er:0.6, erLo:0, erHi:0.6}
+  "4H": {vol:3, atrMin:btcFloor("4H", 0.8), atrMax:3.5, er:0.6, erLo:0, erHi:0.6},
+  "1D": {vol:3, atrMin:btcFloor("1D", 2), atrMax:8, er:0.6, erLo:0, erHi:0.6},
+  "1W": {vol:3, atrMin:btcFloor("1W", 6), atrMax:24, er:0.6, erLo:0, erHi:0.6}
 };
 const TF = {
   "4H": {name:"4 小時線", short:"4H", days:1/6, atrMax:10},
@@ -581,8 +581,7 @@ function reasons(c){
   if (S.mk === "spot" && !c.spot) r.push(["no","派網無現貨"]);
   if (c.vol24 < VOL_STEPS[f.vol]) r.push(["no","成交量不足"]);
   if (r2(d.atrPct) < f.atrMin) r.push(["warn","波動太低"]);
-  // 上限拉到底＝不限
-  if (f.atrMax < TF[S.tf].atrMax && r2(d.atrPct) > f.atrMax) r.push(["warn","波動太高"]);
+  if (r2(d.atrPct) > f.atrMax) r.push(["warn","波動太高"]);
   if (S.mk === "spot"){
     if (d.er > f.er) r.push(["warn","強趨勢"]);
   } else {
@@ -607,11 +606,10 @@ function updHelp(){
 function renderTable(){
   const f = S.f[S.tf];
   $("#vol").value = f.vol; $("#volOut").textContent = f.vol ? "≥ $" + fv(VOL_STEPS[f.vol]) : "不限";
-  // 先設最大值再設值，否則值會被舊的最大值截斷，圓點位置對不上
+  $("#atrMin").value = f.atrMin; $("#atrMax").value = f.atrMax;
+  $("#atrOut").textContent = f.atrMin.toFixed(2) + "% – " + f.atrMax.toFixed(2) + "%";
   const mx = TF[S.tf].atrMax;
   $("#atrMin").max = mx; $("#atrMax").max = mx;
-  $("#atrMin").value = f.atrMin; $("#atrMax").value = f.atrMax;
-  $("#atrOut").textContent = f.atrMin.toFixed(2) + "% – " + (f.atrMax >= mx ? "不限" : f.atrMax.toFixed(2) + "%");
   $("#atrFill").style.left = (f.atrMin/mx*100) + "%"; $("#atrFill").style.right = (100 - f.atrMax/mx*100) + "%";
   const isPerp = S.mk === "perp";
   $("#modeTag").textContent = `目前篩選：${isPerp ? "合約網格" : "現貨網格"}・${TF[S.tf].name}`;
@@ -852,17 +850,15 @@ function atrChart(c){
   const W = g ? g.W : Math.max(320, Math.round($("#atrChart").clientWidth) || 800), H = 80, pr = 70, pl = 4, pt = 6, pb = 6;
   const vals = ser.filter(v => v != null);
   if (!vals.length) return "";
-  const noCap = f.atrMax >= TF[S.tf].atrMax;   // 上限不限時，綠帶畫到圖頂，不把座標撐到上限值
-  let lo = Math.min(...vals, f.atrMin), hi = Math.max(...vals, noCap ? f.atrMin : f.atrMax);
+  let lo = Math.min(...vals, f.atrMin), hi = Math.max(...vals, f.atrMax);
   lo = Math.max(0, lo - (hi-lo)*0.08); hi += (hi-lo)*0.08;
   const y = v => pt + (hi - v)/(hi - lo)*(H - pt - pb), cw = (W - pr - pl)/ser.length;
   S._ag = {ser, y, cw, pl, W, pr};
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ATR% 走勢">`;
-  const topY = noCap ? pt : y(f.atrMax);
-  s += `<rect x="${pl}" y="${topY}" width="${W-pr-pl}" height="${Math.max(0, y(f.atrMin)-topY)}" fill="var(--good-soft)"/>`;
+  s += `<rect x="${pl}" y="${y(f.atrMax)}" width="${W-pr-pl}" height="${y(f.atrMin)-y(f.atrMax)}" fill="var(--good-soft)"/>`;
   const pts = ser.map((v, i) => v == null ? null : `${(pl+cw*i+cw/2).toFixed(1)},${y(v).toFixed(1)}`).filter(Boolean);
   s += `<polyline points="${pts.join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
-  if (!noCap) s += `<text x="${W-pr+6}" y="${y(f.atrMax)+4}" font-size="11.5" fill="var(--good)" font-family="var(--num)">${f.atrMax}%</text>`;
+  s += `<text x="${W-pr+6}" y="${y(f.atrMax)+4}" font-size="11.5" fill="var(--good)" font-family="var(--num)">${f.atrMax}%</text>`;
   s += `<text x="${W-pr+6}" y="${y(f.atrMin)+4}" font-size="11.5" fill="var(--good)" font-family="var(--num)">${f.atrMin}%</text>`;
   s += `<g id="axh" style="display:none;pointer-events:none">
     <line id="axhV" y1="${pt}" y2="${H-pb}" stroke="var(--ink)" stroke-opacity=".5" stroke-dasharray="3 3"/>
