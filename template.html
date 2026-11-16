@@ -607,10 +607,11 @@ function updHelp(){
 function renderTable(){
   const f = S.f[S.tf];
   $("#vol").value = f.vol; $("#volOut").textContent = f.vol ? "≥ $" + fv(VOL_STEPS[f.vol]) : "不限";
-  $("#atrMin").value = f.atrMin; $("#atrMax").value = f.atrMax;
-  $("#atrOut").textContent = f.atrMin.toFixed(2) + "% – " + (f.atrMax >= TF[S.tf].atrMax ? "不限" : f.atrMax.toFixed(2) + "%");
+  // 先設最大值再設值，否則值會被舊的最大值截斷，圓點位置對不上
   const mx = TF[S.tf].atrMax;
   $("#atrMin").max = mx; $("#atrMax").max = mx;
+  $("#atrMin").value = f.atrMin; $("#atrMax").value = f.atrMax;
+  $("#atrOut").textContent = f.atrMin.toFixed(2) + "% – " + (f.atrMax >= mx ? "不限" : f.atrMax.toFixed(2) + "%");
   $("#atrFill").style.left = (f.atrMin/mx*100) + "%"; $("#atrFill").style.right = (100 - f.atrMax/mx*100) + "%";
   const isPerp = S.mk === "perp";
   $("#modeTag").textContent = `目前篩選：${isPerp ? "合約網格" : "現貨網格"}・${TF[S.tf].name}`;
