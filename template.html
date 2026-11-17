@@ -410,10 +410,10 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
       <div class="stats" id="cStats"></div>
       <div class="advice" id="consensus" hidden></div>
       <div class="helpsrc" id="h-adv" hidden>
-        <span class="hp"><span class="hl">開單建議</span>綜合兩個時間長度來判斷：</span>
-        <span class="hp">中期看近 30 根 K 線的 ER 和 ADX，判斷是震盪、有方向，還是強趨勢。</span>
-        <span class="hp">短期看近 10 根 K 線的漲跌，超過 1.5 個 ATR，就算已經出現方向。中期指標反應比較慢，短期可以補上剛出現的走勢。</span>
-        <span class="hp">兩者一致時把握高；不一致時以短期為準，把握較低，開單前請多看線圖。</span>
+        <span class="hp"><span class="hl">開單分析</span>把目前的 K 線週期，和小一級的週期放在一起看：看週線時對照日線，看日線時對照 4 小時。</span>
+        <span class="hp">兩個週期都用 ER 和 ADX 判斷是震盪、有方向，還是強趨勢。大週期反應比較慢，小週期可以補上剛出現的走勢。</span>
+        <span class="hp">兩個週期一致時，訊號一致度高；不一致時以小週期的方向為參考，一致度較低，開單前請多看線圖。4 小時沒有更小的週期可以對照，只看 4 小時本身。</span>
+        <span class="hp">這裡只整理數據呈現的狀態，不構成投資建議，開單與否請自行判斷。</span>
       </div>
       <div class="helpsrc" id="h-avail" hidden>
         <span class="hp"><span class="hl">派網可開</span>依派網公開資料判斷這支幣能開現貨網格、合約網格，還是兩種都能開。</span>
@@ -545,7 +545,7 @@ const DEF = {
   "1W": {vol:3, atrMin:btcFloor("1W", 6), atrMax:24, er:0.6, erLo:0, erHi:0.6}
 };
 const TF = {
-  "4H": {name:"4 小時線", short:"4H", days:1/6, atrMax:10},
+  "4H": {name:"4 小時線", short:"4 小時", days:1/6, atrMax:10},
   "1D": {name:"日線", short:"日線", days:1, atrMax:20},
   "1W": {name:"週線", short:"週線", days:7, atrMax:60}
 };
@@ -682,50 +682,61 @@ function renderTable(){
 // 合約「自動」方向：ER 和 ADX 都顯示震盪時選中性，其餘依近 30 根漲跌選做多／做空
 function suggestDir(c){ const a = advice(c); return a ? a.dir : trendDir(c); }
 const DIRN = {long:"做多", short:"做空", neutral:"中性"};
-// ---------- 開單建議：中期（近 30 根 ER/ADX）＋ 短期（近 10 根漲跌）----------
-const MOM_N = 10, MOM_ATR = 1.5;   // 近 10 根漲跌超過 1.5 個 ATR，視為短期已出現方向
-function chgN(c, n){ const k = c.tf[S.tf].k; return (k[k.length-1][4] / k[k.length-1-n][4] - 1) * 100; }
-const UPDN = v => (v >= 0 ? "上漲 " : "下跌 ") + Math.abs(v).toFixed(1) + "%";
+// ---------- 開單分析：目前週期 ＋ 小一級週期（週線看日線、日線看 4 小時）----------
+const TFL = {"4H":"4 小時", "1D":"日線", "1W":"週線"};
+const LOWER = {"1W":"1D", "1D":"4H", "4H":null};
+function tfState(c, tf){
+  const d = c.tf[tf];
+  if (!d || d.adx == null || d.k.length <= 31) return null;
+  const k = d.k, c30 = (k[k.length-1][4] / k[k.length-31][4] - 1) * 100;
+  const e = erLv(d.er), a = adxLv(d.adx);
+  const st = e !== a ? "split" : ["range", "dir", "strong"][e];
+  const dir = c30 >= 0 ? "long" : "short", lean = dir === "long" ? "偏多" : "偏空";
+  const ind = `ER ${d.er.toFixed(2)}、ADX ${d.adx.toFixed(1)}`;
+  const txt = st === "range" ? `震盪（${ind}）` : st === "dir" ? `有方向・${lean}（${ind}）`
+    : st === "strong" ? `強趨勢・${lean}（${ind}）` : `ER 和 ADX 分歧（ER ${LV[e]}、ADX ${LV[a]}）`;
+  return {st, dir, lean, txt};
+}
 function advice(c){
-  const d = c.tf[S.tf], cs = consensus(d, c);
-  if (!cs || d.k.length <= 31) return null;
-  const c30 = chg30(c), m10 = chgN(c, MOM_N), sig = Math.abs(m10) / d.atrPct;
-  const midDir = c30 >= 0 ? "long" : "short", mom = sig >= MOM_ATR ? (m10 >= 0 ? "long" : "short") : null;
-  const W = {long:"往上", short:"往下"};
-  const mid = cs.k === "range" ? `震盪（ER ${d.er.toFixed(2)}、ADX ${d.adx.toFixed(1)}）`
-    : cs.k === "dir" ? `有方向，${UPDN(c30)}`
-    : cs.k === "strong" ? `強趨勢，${UPDN(c30)}`
-    : `ER 和 ADX 分歧（ER ${LV[erLv(d.er)]}、ADX ${LV[adxLv(d.adx)]}）`;
-  const short = mom ? `${UPDN(m10)}（約 ${sig.toFixed(1)} 個 ATR），已出現方向` : `${UPDN(m10)}，還在正常波動範圍內`;
+  const m = tfState(c, S.tf);
+  if (!m) return null;
+  const ltf = LOWER[S.tf], l = ltf ? tfState(c, ltf) : null;
+  const M = TFL[S.tf], Lw = ltf ? TFL[ltf] : "";
+  const lmove = l && (l.st === "dir" || l.st === "strong") ? l.dir : null;   // 小週期已出現方向
+  const LEAN = {long:"偏多", short:"偏空"};
   let dir, conf, why;
-  if (cs.k === "strong"){ dir = midDir; conf = null; why = "趨勢太強，價格很容易一路衝出網格區間，建議先觀望。"; }
-  else if (cs.k === "range"){
-    if (!mom){ dir = "neutral"; conf = "高"; why = "中期和短期都在震盪，適合中性網格。"; }
-    else { dir = mom; conf = "中"; why = `中期還在震盪，但短期開始${W[mom]}，順著短期方向開${DIRN[mom]}。`; }
-  } else if (cs.k === "dir"){
-    if (mom === midDir){ dir = midDir; conf = "高"; why = `中期和短期都${W[midDir]}，順勢開${DIRN[midDir]}。`; }
-    else if (!mom){ dir = midDir; conf = "中"; why = `中期${W[midDir]}，短期力道放緩，仍以中期方向為主。`; }
-    else { dir = mom; conf = "低"; why = `中期${W[midDir]}，但短期反向${W[mom]}，可能正在轉折，順著短期方向開${DIRN[mom]}，請先看線圖確認。`; }
+  if (m.st === "strong"){ dir = m.dir; conf = null; why = `${M}是強趨勢，價格很容易一路衝出網格區間，數據顯示適合先觀望。`; }
+  else if (!l){
+    dir = m.st === "range" ? "neutral" : m.dir; conf = null;
+    why = (m.st === "range" ? `${M}在震盪。` : m.st === "dir" ? `${M}有方向，${m.lean}。` : `${M}的 ER 和 ADX 分歧，方向參考性較低。`) + `沒有更小的週期可以對照，開單前請多看線圖。`;
+  } else if (m.st === "range"){
+    if (!lmove){ dir = "neutral"; conf = l.st === "range" ? "高" : "中"; why = l.st === "range" ? `${M}和${Lw}都在震盪，方向中性。` : `${M}在震盪，${Lw}的指標分歧、沒有明確方向，整體偏中性。`; }
+    else { dir = lmove; conf = "中"; why = `${M}還在震盪，但${Lw}已經轉為${LEAN[lmove]}。`; }
+  } else if (m.st === "dir"){
+    if (lmove === m.dir){ dir = m.dir; conf = "高"; why = `${M}和${Lw}都${m.lean}，方向一致。`; }
+    else if (!lmove){ dir = m.dir; conf = "中"; why = `${M}${m.lean}，但${Lw}${l.st === "range" ? "已轉為震盪" : "的指標分歧"}，力道可能正在放緩。`; }
+    else { dir = lmove; conf = "低"; why = `${M}${m.lean}，但${Lw}反向${LEAN[lmove]}，可能正在轉折，請先看線圖確認。`; }
   } else {
-    dir = mom || midDir; conf = "低";
-    why = mom ? `中期指標分歧，以短期方向為準開${DIRN[mom]}，請先看線圖確認。` : `中期指標分歧、短期也沒有明顯方向，參考近 30 根的走勢開${DIRN[midDir]}，請先看線圖確認。`;
+    dir = lmove || m.dir; conf = "低";
+    why = lmove ? `${M}的 ER 和 ADX 分歧，${Lw}${LEAN[lmove]}，方向以${Lw}為參考，請先看線圖確認。` : `${M}的 ER 和 ADX 分歧，${Lw}也沒有明確方向，參考性較低，請先看線圖確認。`;
   }
-  // 現貨只能做多：改成回答「適不適合開」
+  why = why.replace(/([^\s（，。、：])4 小時/g, "$1 4 小時");   // 中文接數字時補空格：「但 4 小時」
+  const rows = [[M, m.txt]].concat(l ? [[Lw, l.txt]] : []);
+  // 現貨只能做多：改成描述「對現貨網格是否有利」
   if (S.mk === "spot"){
-    let ok, head;
-    if (cs.k === "strong"){ ok = "bad"; head = "先觀望"; why = midDir === "long" ? "趨勢太強，價格很容易一路衝出網格上限，建議先觀望。" : "強勢下跌中，現貨網格會一路接刀，建議先觀望。"; }
-    else if (dir === "short"){ ok = "bad"; head = "現在不適合"; why = (mom === "short" ? "短期正在下跌" : "中期往下") + "，現貨網格只能做多，建議觀望，或改用合約做空。"; }
-    else { ok = conf === "高" ? "ok" : "split"; head = "適合開現貨網格"; if (dir === "neutral") why = "中期和短期都在震盪，現貨網格可以在區間內低買高賣。"; }
-    return {dir:"long", conf: ok === "bad" ? null : conf, cls: ok, head, mid, short, why};
+    let cls, head;
+    if (m.st === "strong"){ cls = "bad"; head = "先觀望"; why = m.dir === "long" ? `${M}是強勢上漲，價格很容易一路衝出網格上限，數據顯示適合先觀望。` : `${M}是強勢下跌，現貨網格會一路往下接，數據顯示適合先觀望。`; }
+    else if (dir === "short"){ cls = "bad"; head = "目前不利於現貨網格"; why = why.replace(/請先看線圖確認。$/, "") + "現貨網格只能做多，方向不利，可以觀望，或改用合約網格。"; }
+    else { cls = conf === "高" || conf == null ? "ok" : "split"; head = "有利於現貨網格"; }
+    return {dir:"long", conf: cls === "bad" ? null : conf, cls, head, rows, why};
   }
-  const cls = conf === "高" ? "ok" : conf ? "split" : "bad";
-  const head = cs.k === "strong" ? "先觀望" : `${DIRN[dir]}網格`;
-  return {dir, conf, cls, head, mid, short, why, wait: cs.k === "strong"};
+  const cls = m.st === "strong" ? "bad" : conf === "高" || conf == null ? "ok" : "split";
+  return {dir, conf, cls, head: m.st === "strong" ? "先觀望" : `偏向：${DIRN[dir]}網格`, rows, why, wait: m.st === "strong"};
 }
 // 「自動」方向的說明句，跟著共識列的狀態走
 function dirNote(c, d, g){
   const av = advice(c);
-  if (av) return `目前採用：${DIRN[g.dir]}（依上方開單建議）。` + (av.wait ? "建議先觀望，如果還是要開，請把槓桿調低。" : g.dir === "neutral" ? "中性屬進階，請留意上下兩側的強平價。" : "");
+  if (av) return `目前採用：${DIRN[g.dir]}（依上方開單分析）。` + (av.wait ? "數據顯示適合先觀望，如果還是要開，請把槓桿調低。" : g.dir === "neutral" ? "中性屬進階，請留意上下兩側的強平價。" : "");
   const ch = chg30(c), mv = `近 30 根 K 線${ch >= 0 ? "上漲" : "下跌"} ${Math.abs(ch).toFixed(1)}%`, D = DIRN[g.dir];
   const cs = consensus(d, c);
   if (!cs) return `目前採用：${D}。${mv}。ADX 資料不足，請先看線圖確認再開單。`;
@@ -956,8 +967,8 @@ function renderCoin(){
   cbox.hidden = !av;
   if (av){
     cbox.className = "advice cs-" + av.cls;
-    cbox.innerHTML = `<div class="adv-head"><span class="adv-k">開單建議<button type="button" class="ib keep" data-help="h-adv" aria-label="說明">i</button></span><b>${av.head}</b>${av.conf ? `<span class="adv-conf">把握：${av.conf}</span>` : ""}</div>
-      <dl><dt>中期（近 30 根）</dt><dd>${av.mid}</dd><dt>短期（近 ${MOM_N} 根）</dt><dd>${av.short}</dd></dl>
+    cbox.innerHTML = `<div class="adv-head"><span class="adv-k">開單分析<button type="button" class="ib keep" data-help="h-adv" aria-label="說明">i</button></span><b>${av.head}</b>${av.conf ? `<span class="adv-conf">訊號一致度：${av.conf}</span>` : ""}</div>
+      <dl>${av.rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
       <p>${av.why}</p>`;
   }
 
@@ -1076,7 +1087,7 @@ function chartGuide(c, g){
     neutral: "看最近 10 根 K 線：在區間內上下來回，沒有一路往同一個方向走。"
   }[dir];
   const av = advice(c);
-  return look + (av && av.conf === "低" ? "這次開單建議的把握低，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
+  return look + (av && av.conf === "低" ? "這次開單分析的訊號一致度低，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
 }
 function checklistItems(c, g){
   const d = c.tf[S.tf];
