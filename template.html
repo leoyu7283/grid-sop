@@ -413,7 +413,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
         <span class="hp"><span class="hl">開單分析</span>整理目前 K 線週期的狀態，幫你決定下一步。</span>
         <span class="hp">訊號品質：ER 和 ADX 看法一致（都震盪、都有方向，或都是強趨勢）為高；不一致為低。</span>
         <span class="hp">強趨勢先觀望；有方向就看線圖確認；震盪可以考慮中性網格，想做單邊的話，參考大一級週期的方向，因為震盪通常被更大的趨勢包住。</span>
-        <span class="hp">走勢結構比較最近兩個波段的高點和低點：都越來越高是多頭結構，都越來越低是空頭結構，其他是盤整。一般單看日線和 4 小時，天地單只看週線。</span>
+        <span class="hp">走勢結構比較最近兩個波段的高點和低點：都越來越高是多頭結構，都越來越低是空頭結構；只有其中一個在升或降，標示為偏多或偏空；其他是盤整。一般單看日線和 4 小時，天地單只看週線。</span>
         <span class="hp">這裡只整理數據呈現的狀態，不構成投資建議，開單與否請自行判斷。</span>
       </div>
       <div class="helpsrc" id="h-avail" hidden>
@@ -700,21 +700,29 @@ function tfState(c, tf){
 }
 const UPPER = {"4H":"1D", "1D":"1W", "1W":null};
 // 走勢結構：找出最近的波段高點、低點（左右各 3 根都比它低／高），比較最後兩個高點與兩個低點
+// 最後一個確認的波段點之後，若已出現更極端的價格，直接當作新的波段點（急漲急跌不用等 3 根才反映）
 function structure(c, tf){
   const d = c.tf[tf]; if (!d) return null;
-  const k = d.k.slice(-80), w = 3, tol = d.atr * 0.2, H = [], L = [];
+  const k = d.k.slice(-80), w = 3, tol = d.atr * 0.2, Hi = [], Li = [];
   for (let i = w; i < k.length - w; i++){
     const win = k.slice(i - w, i + w + 1);
-    if (k[i][2] === Math.max(...win.map(b => b[2]))) H.push(k[i][2]);
-    if (k[i][3] === Math.min(...win.map(b => b[3]))) L.push(k[i][3]);
+    if (k[i][2] === Math.max(...win.map(b => b[2]))) Hi.push(i);
+    if (k[i][3] === Math.min(...win.map(b => b[3]))) Li.push(i);
   }
+  const H = Hi.map(i => k[i][2]), L = Li.map(i => k[i][3]);
+  if (Hi.length){ const t = k.slice(Hi[Hi.length-1] + 1), mx = Math.max(...t.map(b => b[2])); if (t.length && mx > H[H.length-1]) H.push(mx); }
+  if (Li.length){ const t = k.slice(Li[Li.length-1] + 1), mn = Math.min(...t.map(b => b[3])); if (t.length && mn < L[L.length-1]) L.push(mn); }
   if (H.length < 2 || L.length < 2) return null;
-  const hd = H[H.length-1] - H[H.length-2], ld = L[L.length-1] - L[L.length-2];
-  const sg = v => v > tol ? 1 : v < -tol ? -1 : 0, h = sg(hd), l = sg(ld);
-  if (h >= 0 && l >= 0 && h + l > 0) return {dir:"long", txt:"高點、低點都越來越高（多頭結構）"};
-  if (h <= 0 && l <= 0 && h + l < 0) return {dir:"short", txt:"高點、低點都越來越低（空頭結構）"};
-  if (h > 0 && l < 0) return {dir:null, txt:"上下震盪越來越大，沒有方向（盤整）"};
-  if (h < 0 && l > 0) return {dir:null, txt:"上下震盪越來越小，沒有方向（盤整）"};
+  const sg = v => v > tol ? 1 : v < -tol ? -1 : 0;
+  const h = sg(H[H.length-1] - H[H.length-2]), l = sg(L[L.length-1] - L[L.length-2]);
+  if (h === 1 && l === 1) return {dir:"long", txt:"高點、低點都越來越高（多頭結構）"};
+  if (h === 0 && l === 1) return {dir:"long", txt:"低點越來越高，高點差不多（偏多）"};
+  if (h === 1 && l === 0) return {dir:"long", txt:"高點越來越高，低點差不多（偏多）"};
+  if (h === -1 && l === -1) return {dir:"short", txt:"高點、低點都越來越低（空頭結構）"};
+  if (h === 0 && l === -1) return {dir:"short", txt:"低點越來越低，高點差不多（偏空）"};
+  if (h === -1 && l === 0) return {dir:"short", txt:"高點越來越低，低點差不多（偏空）"};
+  if (h === 1 && l === -1) return {dir:null, txt:"上下震盪越來越大，沒有方向（盤整）"};
+  if (h === -1 && l === 1) return {dir:null, txt:"上下震盪越來越小，沒有方向（盤整）"};
   return {dir:null, txt:"高點、低點差不多，沒有方向（盤整）"};
 }
 function advice(c){
