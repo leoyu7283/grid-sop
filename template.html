@@ -158,6 +158,20 @@ details.excluded ul{columns:3 220px;padding-left:18px;color:var(--muted);font-si
 .stat.cs-ok{background:var(--good-soft)}
 .stat.cs-split{background:var(--warn-soft)}
 .stat.cs-bad{background:var(--bad-soft)}
+.advice{margin:-8px 0 18px;padding:12px 16px;border-radius:10px;font-size:14px;line-height:1.6;border:1px solid transparent}
+.advice[hidden]{display:none}
+.advice.cs-ok{background:var(--good-soft);border-color:var(--good)}
+.advice.cs-split{background:var(--warn-soft);border-color:var(--warn)}
+.advice.cs-bad{background:var(--bad-soft);border-color:var(--bad)}
+.adv-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-bottom:6px}
+.adv-k{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
+.adv-head b{font-size:18px}
+.cs-ok .adv-head b{color:var(--good)} .cs-split .adv-head b{color:var(--warn)} .cs-bad .adv-head b{color:var(--bad)}
+.adv-conf{font-size:13px;font-weight:600;padding:1px 10px;border-radius:999px;background:var(--panel);color:var(--ink)}
+.advice dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0 0 6px}
+.advice dt{color:var(--muted);white-space:nowrap}
+.advice dd{margin:0;color:var(--ink)}
+.advice p{margin:0;color:var(--ink);text-align:justify;text-justify:inter-character}
 .consensus{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:-8px 0 18px;padding:10px 16px;border-radius:10px;font-size:14px;line-height:1.55}
 .consensus[hidden]{display:none}
 .consensus b{font-weight:700;white-space:nowrap}
@@ -394,7 +408,13 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
         <select id="cSel" aria-label="切換幣種"></select>
       </div>
       <div class="stats" id="cStats"></div>
-      <div class="consensus" id="consensus" hidden></div>
+      <div class="advice" id="consensus" hidden></div>
+      <div class="helpsrc" id="h-adv" hidden>
+        <span class="hp"><span class="hl">開單建議</span>綜合兩個時間長度來判斷：</span>
+        <span class="hp">中期看近 30 根 K 線的 ER 和 ADX，判斷是震盪、有方向，還是強趨勢。</span>
+        <span class="hp">短期看近 10 根 K 線的漲跌，超過 1.5 個 ATR，就算已經出現方向。中期指標反應比較慢，短期可以補上剛出現的走勢。</span>
+        <span class="hp">兩者一致時把握高；不一致時以短期為準，把握較低，開單前請多看線圖。</span>
+      </div>
       <div class="helpsrc" id="h-avail" hidden>
         <span class="hp"><span class="hl">派網可開</span>依派網公開資料判斷這支幣能開現貨網格、合約網格，還是兩種都能開。</span>
         <span class="hp">少數幣（例如 PUMP）在派網 App 可以開現貨網格，公開資料卻沒有，這些幣經人工確認後補上，標示為「現貨＊」。</span>
@@ -660,10 +680,52 @@ function renderTable(){
 
 // ---------- grid calc ----------
 // 合約「自動」方向：ER 和 ADX 都顯示震盪時選中性，其餘依近 30 根漲跌選做多／做空
-function suggestDir(c){ const cs = consensus(c.tf[S.tf], c); return cs && cs.k === "range" ? "neutral" : trendDir(c); }
+function suggestDir(c){ const a = advice(c); return a ? a.dir : trendDir(c); }
 const DIRN = {long:"做多", short:"做空", neutral:"中性"};
+// ---------- 開單建議：中期（近 30 根 ER/ADX）＋ 短期（近 10 根漲跌）----------
+const MOM_N = 10, MOM_ATR = 1.5;   // 近 10 根漲跌超過 1.5 個 ATR，視為短期已出現方向
+function chgN(c, n){ const k = c.tf[S.tf].k; return (k[k.length-1][4] / k[k.length-1-n][4] - 1) * 100; }
+const UPDN = v => (v >= 0 ? "上漲 " : "下跌 ") + Math.abs(v).toFixed(1) + "%";
+function advice(c){
+  const d = c.tf[S.tf], cs = consensus(d, c);
+  if (!cs || d.k.length <= 31) return null;
+  const c30 = chg30(c), m10 = chgN(c, MOM_N), sig = Math.abs(m10) / d.atrPct;
+  const midDir = c30 >= 0 ? "long" : "short", mom = sig >= MOM_ATR ? (m10 >= 0 ? "long" : "short") : null;
+  const W = {long:"往上", short:"往下"};
+  const mid = cs.k === "range" ? `震盪（ER ${d.er.toFixed(2)}、ADX ${d.adx.toFixed(1)}）`
+    : cs.k === "dir" ? `有方向，${UPDN(c30)}`
+    : cs.k === "strong" ? `強趨勢，${UPDN(c30)}`
+    : `ER 和 ADX 分歧（ER ${LV[erLv(d.er)]}、ADX ${LV[adxLv(d.adx)]}）`;
+  const short = mom ? `${UPDN(m10)}（約 ${sig.toFixed(1)} 個 ATR），已出現方向` : `${UPDN(m10)}，還在正常波動範圍內`;
+  let dir, conf, why;
+  if (cs.k === "strong"){ dir = midDir; conf = null; why = "趨勢太強，價格很容易一路衝出網格區間，建議先觀望。"; }
+  else if (cs.k === "range"){
+    if (!mom){ dir = "neutral"; conf = "高"; why = "中期和短期都在震盪，適合中性網格。"; }
+    else { dir = mom; conf = "中"; why = `中期還在震盪，但短期開始${W[mom]}，順著短期方向開${DIRN[mom]}。`; }
+  } else if (cs.k === "dir"){
+    if (mom === midDir){ dir = midDir; conf = "高"; why = `中期和短期都${W[midDir]}，順勢開${DIRN[midDir]}。`; }
+    else if (!mom){ dir = midDir; conf = "中"; why = `中期${W[midDir]}，短期力道放緩，仍以中期方向為主。`; }
+    else { dir = mom; conf = "低"; why = `中期${W[midDir]}，但短期反向${W[mom]}，可能正在轉折，順著短期方向開${DIRN[mom]}，請先看線圖確認。`; }
+  } else {
+    dir = mom || midDir; conf = "低";
+    why = mom ? `中期指標分歧，以短期方向為準開${DIRN[mom]}，請先看線圖確認。` : `中期指標分歧、短期也沒有明顯方向，參考近 30 根的走勢開${DIRN[midDir]}，請先看線圖確認。`;
+  }
+  // 現貨只能做多：改成回答「適不適合開」
+  if (S.mk === "spot"){
+    let ok, head;
+    if (cs.k === "strong"){ ok = "bad"; head = "先觀望"; why = midDir === "long" ? "趨勢太強，價格很容易一路衝出網格上限，建議先觀望。" : "強勢下跌中，現貨網格會一路接刀，建議先觀望。"; }
+    else if (dir === "short"){ ok = "bad"; head = "現在不適合"; why = (mom === "short" ? "短期正在下跌" : "中期往下") + "，現貨網格只能做多，建議觀望，或改用合約做空。"; }
+    else { ok = conf === "高" ? "ok" : "split"; head = "適合開現貨網格"; if (dir === "neutral") why = "中期和短期都在震盪，現貨網格可以在區間內低買高賣。"; }
+    return {dir:"long", conf: ok === "bad" ? null : conf, cls: ok, head, mid, short, why};
+  }
+  const cls = conf === "高" ? "ok" : conf ? "split" : "bad";
+  const head = cs.k === "strong" ? "先觀望" : `${DIRN[dir]}網格`;
+  return {dir, conf, cls, head, mid, short, why, wait: cs.k === "strong"};
+}
 // 「自動」方向的說明句，跟著共識列的狀態走
 function dirNote(c, d, g){
+  const av = advice(c);
+  if (av) return `目前採用：${DIRN[g.dir]}（依上方開單建議）。` + (av.wait ? "建議先觀望，如果還是要開，請把槓桿調低。" : g.dir === "neutral" ? "中性屬進階，請留意上下兩側的強平價。" : "");
   const ch = chg30(c), mv = `近 30 根 K 線${ch >= 0 ? "上漲" : "下跌"} ${Math.abs(ch).toFixed(1)}%`, D = DIRN[g.dir];
   const cs = consensus(d, c);
   if (!cs) return `目前採用：${D}。${mv}。ADX 資料不足，請先看線圖確認再開單。`;
@@ -890,9 +952,14 @@ function renderCoin(){
     ["ER(30)", d.er.toFixed(2), erTxt, "h-er", cs && cs.cls],
     ["ADX(14)", d.adx != null ? d.adx.toFixed(1) : "—", adxTxt, "h-adx", cs && cs.cls]
   ].concat(c.yr ? [[c.yr.days >= 365 ? "近 1 年高／低" : `上市以來高／低（${c.yr.days} 天）`, fp(c.yr.hi), `低點 ${fp(c.yr.lo)}`, "h-yr"]] : []).map(([k, v, h, hid, cl]) => `<div class="stat${cl ? " cs-" + cl : ""}"><div class="k">${k}${hid ? `<button type="button" class="ib keep" data-help="${hid}" aria-label="說明">i</button>` : ""}</div><div class="v">${v}</div><div class="h">${h}</div></div>`).join("");
-  const cbox = $("#consensus");
-  cbox.hidden = !cs;
-  if (cs){ cbox.className = "consensus cs-" + cs.cls; cbox.innerHTML = `<b>${cs.title}</b><span>${cs.text}</span>`; }
+  const av = advice(c), cbox = $("#consensus");
+  cbox.hidden = !av;
+  if (av){
+    cbox.className = "advice cs-" + av.cls;
+    cbox.innerHTML = `<div class="adv-head"><span class="adv-k">開單建議<button type="button" class="ib keep" data-help="h-adv" aria-label="說明">i</button></span><b>${av.head}</b>${av.conf ? `<span class="adv-conf">把握：${av.conf}</span>` : ""}</div>
+      <dl><dt>中期（近 30 根）</dt><dd>${av.mid}</dd><dt>短期（近 ${MOM_N} 根）</dt><dd>${av.short}</dd></dl>
+      <p>${av.why}</p>`;
+  }
 
   // form state
   if (document.activeElement !== $("#cap")) $("#cap").value = S.cap;
@@ -1008,8 +1075,8 @@ function chartGuide(c, g){
     short: "看最近 10 根 K 線：沒有連續收漲，也沒有突破前面的高點。",
     neutral: "看最近 10 根 K 線：在區間內上下來回，沒有一路往同一個方向走。"
   }[dir];
-  const cs = consensus(c.tf[S.tf], c);
-  return look + (cs && cs.k === "split" ? "這次 ER 和 ADX 分歧，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
+  const av = advice(c);
+  return look + (av && av.conf === "低" ? "這次開單建議的把握低，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
 }
 function checklistItems(c, g){
   const d = c.tf[S.tf];
