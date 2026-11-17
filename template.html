@@ -410,9 +410,10 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
       <div class="stats" id="cStats"></div>
       <div class="advice" id="consensus" hidden></div>
       <div class="helpsrc" id="h-adv" hidden>
-        <span class="hp"><span class="hl">開單分析</span>把目前的 K 線週期，和小一級的週期放在一起看：看週線時對照日線，看日線時對照 4 小時。</span>
-        <span class="hp">兩個週期都用 ER 和 ADX 判斷是震盪、有方向，還是強趨勢。大週期反應比較慢，小週期可以補上剛出現的走勢。</span>
-        <span class="hp">兩個週期一致時，訊號一致度高；不一致時以小週期的方向為參考，一致度較低，開單前請多看線圖。4 小時沒有更小的週期可以對照，只看 4 小時本身。</span>
+        <span class="hp"><span class="hl">開單分析</span>整理目前 K 線週期的狀態，幫你決定下一步。</span>
+        <span class="hp">訊號品質：ER 和 ADX 看法一致（都震盪、都有方向，或都是強趨勢）為高；不一致為低。</span>
+        <span class="hp">強趨勢先觀望；有方向就看線圖確認；震盪可以考慮中性網格，想做單邊的話，參考大一級週期的方向，因為震盪通常被更大的趨勢包住。</span>
+        <span class="hp">走勢結構比較最近兩個波段的高點和低點：逐步墊高是多頭結構，逐步降低是空頭結構，其他是區間盤整。一般單看日線和 4 小時，天地單只看週線。</span>
         <span class="hp">這裡只整理數據呈現的狀態，不構成投資建議，開單與否請自行判斷。</span>
       </div>
       <div class="helpsrc" id="h-avail" hidden>
@@ -697,41 +698,57 @@ function tfState(c, tf){
     : st === "strong" ? `強趨勢・${lean}（${ind}）` : `ER 和 ADX 分歧（ER ${LV[e]}、ADX ${LV[a]}）`;
   return {st, dir, lean, txt};
 }
+const UPPER = {"4H":"1D", "1D":"1W", "1W":null};
+// 走勢結構：找出最近的波段高點、低點（左右各 3 根都比它低／高），比較最後兩個高點與兩個低點
+function structure(c, tf){
+  const d = c.tf[tf]; if (!d) return null;
+  const k = d.k.slice(-80), w = 3, tol = d.atr * 0.2, H = [], L = [];
+  for (let i = w; i < k.length - w; i++){
+    const win = k.slice(i - w, i + w + 1);
+    if (k[i][2] === Math.max(...win.map(b => b[2]))) H.push(k[i][2]);
+    if (k[i][3] === Math.min(...win.map(b => b[3]))) L.push(k[i][3]);
+  }
+  if (H.length < 2 || L.length < 2) return null;
+  const hd = H[H.length-1] - H[H.length-2], ld = L[L.length-1] - L[L.length-2];
+  const sg = v => v > tol ? 1 : v < -tol ? -1 : 0, h = sg(hd), l = sg(ld);
+  if (h >= 0 && l >= 0 && h + l > 0) return {dir:"long", txt:"高點、低點逐步墊高（多頭結構）"};
+  if (h <= 0 && l <= 0 && h + l < 0) return {dir:"short", txt:"高點、低點逐步降低（空頭結構）"};
+  if (h > 0 && l < 0) return {dir:null, txt:"高點更高、低點更低，震幅擴大（區間盤整）"};
+  if (h < 0 && l > 0) return {dir:null, txt:"高點降低、低點墊高，震幅收斂（區間盤整）"};
+  return {dir:null, txt:"高低點沒有明顯變化（區間盤整）"};
+}
 function advice(c){
   const m = tfState(c, S.tf);
   if (!m) return null;
-  const ltf = LOWER[S.tf], l = ltf ? tfState(c, ltf) : null;
-  const M = TFL[S.tf], Lw = ltf ? TFL[ltf] : "";
-  const lmove = l && (l.st === "dir" || l.st === "strong") ? l.dir : null;   // 小週期已出現方向
+  const M = TFL[S.tf], utf = UPPER[S.tf], u = utf ? tfState(c, utf) : null;
   const LEAN = {long:"偏多", short:"偏空"};
-  let dir, conf, why;
-  if (m.st === "strong"){ dir = m.dir; conf = null; why = `${M}是強趨勢，價格很容易一路衝出網格區間，數據顯示適合先觀望。`; }
-  else if (!l){
-    dir = m.st === "range" ? "neutral" : m.dir; conf = null;
-    why = (m.st === "range" ? `${M}在震盪。` : m.st === "dir" ? `${M}有方向，${m.lean}。` : `${M}的 ER 和 ADX 分歧，方向參考性較低。`) + `沒有更小的週期可以對照，開單前請多看線圖。`;
-  } else if (m.st === "range"){
-    if (!lmove){ dir = "neutral"; conf = l.st === "range" ? "高" : "中"; why = l.st === "range" ? `${M}和${Lw}都在震盪，方向中性。` : `${M}在震盪，${Lw}的指標分歧、沒有明確方向，整體偏中性。`; }
-    else { dir = lmove; conf = "中"; why = `${M}還在震盪，但${Lw}已經轉為${LEAN[lmove]}。`; }
-  } else if (m.st === "dir"){
-    if (lmove === m.dir){ dir = m.dir; conf = "高"; why = `${M}和${Lw}都${m.lean}，方向一致。`; }
-    else if (!lmove){ dir = m.dir; conf = "中"; why = `${M}${m.lean}，但${Lw}${l.st === "range" ? "已轉為震盪" : "的指標分歧"}，力道可能正在放緩。`; }
-    else { dir = lmove; conf = "低"; why = `${M}${m.lean}，但${Lw}反向${LEAN[lmove]}，可能正在轉折，請先看線圖確認。`; }
-  } else {
-    dir = lmove || m.dir; conf = "低";
-    why = lmove ? `${M}的 ER 和 ADX 分歧，${Lw}${LEAN[lmove]}，方向以${Lw}為參考，請先看線圖確認。` : `${M}的 ER 和 ADX 分歧，${Lw}也沒有明確方向，參考性較低，請先看線圖確認。`;
-  }
-  why = why.replace(/([^\s（，。、：])4 小時/g, "$1 4 小時");   // 中文接數字時補空格：「但 4 小時」
-  const rows = [[M, m.txt]].concat(l ? [[Lw, l.txt]] : []);
+  // 走勢結構：週線（天地單）只看週線；日線、4 小時看日線和 4 小時
+  const stTfs = S.tf === "1W" ? ["1W"] : ["1D", "4H"];
+  const sts = stTfs.map(tf => [tf, structure(c, tf)]).filter(x => x[1]);
+  const st4 = (sts.find(x => x[0] === "4H") || sts.find(x => x[0] === S.tf) || [])[1];
+  const quality = m.st === "split" ? "低" : "高";
+  let head, cls, dir, next;
+  if (m.st === "strong"){ head = `強趨勢・${m.lean}，先觀望`; cls = "bad"; dir = m.dir; next = "兩個指標都顯示強趨勢，價格很容易一路衝出網格區間，先觀望。"; }
+  else if (m.st === "dir"){ head = `有方向・${m.lean}`; cls = "ok"; dir = m.dir;
+    next = `兩個指標都顯示有方向，${m.lean}。` + (st4 && st4.dir && st4.dir !== m.dir ? `但${TFL[sts.find(x => x[1] === st4)[0]]}的結構${LEAN[st4.dir]}，可能正在轉折，` : "") + "請看線圖確認方向。"; }
+  else if (m.st === "range"){ head = "震盪盤整，可考慮中性網格"; cls = "ok"; dir = "neutral";
+    next = "兩個指標都顯示震盪，可以考慮中性網格。" + (u && (u.st === "dir" || u.st === "strong") ? `想做單邊的話，大一級的${TFL[utf]}${u.lean}，可以順著${TFL[utf]}方向${u.dir === "long" ? "做多" : "做空"}。` : u ? `大一級的${TFL[utf]}也沒有明確方向。` : ""); }
+  else { head = "訊號分歧"; cls = "split"; dir = (st4 && st4.dir) || m.dir;
+    next = "ER 和 ADX 看法不一致，訊號品質較低，請看線圖再決定。" + (st4 && st4.dir ? `走勢結構目前${LEAN[st4.dir]}。` : ""); }
+  const rows = [[`${M}`, m.txt]];
+  if (u) rows.push([`${TFL[utf]}（大一級）`, u.txt]);
+  sts.forEach(([tf, x]) => rows.push([`${TFL[tf]}結構`, x.txt]));
+  next = next.replace(/([^\s（，。、：])4 小時/g, "$1 4 小時");
   // 現貨只能做多：改成描述「對現貨網格是否有利」
   if (S.mk === "spot"){
-    let cls, head;
-    if (m.st === "strong"){ cls = "bad"; head = "先觀望"; why = m.dir === "long" ? `${M}是強勢上漲，價格很容易一路衝出網格上限，數據顯示適合先觀望。` : `${M}是強勢下跌，現貨網格會一路往下接，數據顯示適合先觀望。`; }
-    else if (dir === "short"){ cls = "bad"; head = "目前不利於現貨網格"; why = why.replace(/請先看線圖確認。$/, "") + "現貨網格只能做多，方向不利，可以觀望，或改用合約網格。"; }
-    else { cls = conf === "高" || conf == null ? "ok" : "split"; head = "有利於現貨網格"; }
-    return {dir:"long", conf: cls === "bad" ? null : conf, cls, head, rows, why};
+    if (m.st === "strong"){ head = m.dir === "long" ? "強勢上漲，先觀望" : "強勢下跌，先觀望"; cls = "bad"; }
+    else if (dir === "short" || (dir === "neutral" && u && u.dir === "short" && u.st !== "range" && u.st !== "split")){
+      head = dir === "short" ? "偏空，不利於現貨網格" : "震盪，但大週期偏空"; cls = dir === "short" ? "bad" : "split";
+      next = (dir === "short" ? `${M}偏空，` : `${M}在震盪，但大一級的${TFL[utf]}偏空，`) + "現貨網格只能做多，方向不利，可以觀望，或改用合約網格。";
+    } else if (m.st === "range"){ head = "震盪盤整，有利於現貨網格"; next = "兩個指標都顯示震盪，現貨網格可以在區間內低買高賣。"; }
+    return {dir:"long", quality, cls, head, rows, next};
   }
-  const cls = m.st === "strong" ? "bad" : conf === "高" || conf == null ? "ok" : "split";
-  return {dir, conf, cls, head: m.st === "strong" ? "先觀望" : `偏向：${DIRN[dir]}網格`, rows, why, wait: m.st === "strong"};
+  return {dir, quality, cls, head, rows, next, wait: m.st === "strong"};
 }
 // 「自動」方向的說明句，跟著共識列的狀態走
 function dirNote(c, d, g){
@@ -967,9 +984,9 @@ function renderCoin(){
   cbox.hidden = !av;
   if (av){
     cbox.className = "advice cs-" + av.cls;
-    cbox.innerHTML = `<div class="adv-head"><span class="adv-k">開單分析<button type="button" class="ib keep" data-help="h-adv" aria-label="說明">i</button></span><b>${av.head}</b>${av.conf ? `<span class="adv-conf">訊號一致度：${av.conf}</span>` : ""}</div>
+    cbox.innerHTML = `<div class="adv-head"><span class="adv-k">開單分析・${TFL[S.tf]}<button type="button" class="ib keep" data-help="h-adv" aria-label="說明">i</button></span><b>${av.head}</b><span class="adv-conf">訊號品質：${av.quality}</span></div>
       <dl>${av.rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
-      <p>${av.why}</p>`;
+      <p>${av.next}</p>`;
   }
 
   // form state
@@ -1087,7 +1104,7 @@ function chartGuide(c, g){
     neutral: "看最近 10 根 K 線：在區間內上下來回，沒有一路往同一個方向走。"
   }[dir];
   const av = advice(c);
-  return look + (av && av.conf === "低" ? "這次開單分析的訊號一致度低，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
+  return look + (av && av.quality === "低" ? "這次 ER 和 ADX 分歧、訊號品質低，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
 }
 function checklistItems(c, g){
   const d = c.tf[S.tf];
