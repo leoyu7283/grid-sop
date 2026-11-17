@@ -413,7 +413,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
         <span class="hp"><span class="hl">開單分析</span>整理目前 K 線週期的狀態，幫你決定下一步。</span>
         <span class="hp">訊號品質：ER 和 ADX 看法一致（都震盪、都有方向，或都是強趨勢）為高；不一致為低。</span>
         <span class="hp">強趨勢先觀望；有方向就看線圖確認；震盪可以考慮中性網格，想做單邊的話，參考大一級週期的方向，因為震盪通常被更大的趨勢包住。</span>
-        <span class="hp">走勢結構比較最近兩個波段的高點和低點：逐步墊高是多頭結構，逐步降低是空頭結構，其他是區間盤整。一般單看日線和 4 小時，天地單只看週線。</span>
+        <span class="hp">走勢結構比較最近兩個波段的高點和低點：都越來越高是多頭結構，都越來越低是空頭結構，其他是盤整。一般單看日線和 4 小時，天地單只看週線。</span>
         <span class="hp">這裡只整理數據呈現的狀態，不構成投資建議，開單與否請自行判斷。</span>
       </div>
       <div class="helpsrc" id="h-avail" hidden>
@@ -711,11 +711,11 @@ function structure(c, tf){
   if (H.length < 2 || L.length < 2) return null;
   const hd = H[H.length-1] - H[H.length-2], ld = L[L.length-1] - L[L.length-2];
   const sg = v => v > tol ? 1 : v < -tol ? -1 : 0, h = sg(hd), l = sg(ld);
-  if (h >= 0 && l >= 0 && h + l > 0) return {dir:"long", txt:"高點、低點逐步墊高（多頭結構）"};
-  if (h <= 0 && l <= 0 && h + l < 0) return {dir:"short", txt:"高點、低點逐步降低（空頭結構）"};
-  if (h > 0 && l < 0) return {dir:null, txt:"高點更高、低點更低，震幅擴大（區間盤整）"};
-  if (h < 0 && l > 0) return {dir:null, txt:"高點降低、低點墊高，震幅收斂（區間盤整）"};
-  return {dir:null, txt:"高低點沒有明顯變化（區間盤整）"};
+  if (h >= 0 && l >= 0 && h + l > 0) return {dir:"long", txt:"高點、低點都越來越高（多頭結構）"};
+  if (h <= 0 && l <= 0 && h + l < 0) return {dir:"short", txt:"高點、低點都越來越低（空頭結構）"};
+  if (h > 0 && l < 0) return {dir:null, txt:"上下震盪越來越大，沒有方向（盤整）"};
+  if (h < 0 && l > 0) return {dir:null, txt:"上下震盪越來越小，沒有方向（盤整）"};
+  return {dir:null, txt:"高點、低點差不多，沒有方向（盤整）"};
 }
 function advice(c){
   const m = tfState(c, S.tf);
