@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>網格開單流程</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* 版面：一條直線往下走的關卡，分岔處用並排的路線卡；數字用等寬字，像交易面板 */
+:root{
+  --bg:#F3F5F4; --panel:#FFFFFF; --ink:#16201D; --muted:#5C6B66; --line:#D5DDDA;
+  --accent:#0F766E; --accent-soft:#DDF0EC;
+  --good:#1F7A4D; --good-soft:#E1F2E8; --warn:#A86408; --warn-soft:#FBEED8; --bad:#B4323F; --bad-soft:#F8E2E4;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1614; --panel:#17211E; --ink:#E6EEEB; --muted:#93A39E; --line:#2A3834;
+  --accent:#4FC1B3; --accent-soft:#183531;
+  --good:#6CCB98; --good-soft:#18301F; --warn:#E5A84A; --warn-soft:#352914; --bad:#EE8590; --bad-soft:#3A1C21; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1614; --panel:#17211E; --ink:#E6EEEB; --muted:#93A39E; --line:#2A3834;
+  --accent:#4FC1B3; --accent-soft:#183531;
+  --good:#6CCB98; --good-soft:#18301F; --warn:#E5A84A; --warn-soft:#352914; --bad:#EE8590; --bad-soft:#3A1C21; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.5px;line-height:1.7;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:36px 56px}
+.wrap{max-width:860px;margin:0 auto}
+header{display:grid;gap:10px;margin-bottom:28px}
+.eyebrow{font-size:12.5px;letter-spacing:.12em;color:var(--accent);font-weight:700}
+h1{margin:0;font-size:clamp(28px,6vw,40px);font-weight:900;line-height:1.25;text-wrap:balance}
+.lede{margin:0;color:var(--muted);max-width:62ch;text-align:justify}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+.overview{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 16px 20px;margin-bottom:30px}
+.overview h2,.sec-h{margin:0 0 12px;font-size:18px;font-weight:800}
+.sec-h{margin-bottom:16px}
+.fc{max-width:460px;margin:0 auto}
+.fc svg{display:block;width:100%;height:auto}
+.fc text{font-family:var(--sans);text-anchor:middle;font-size:13.5px;fill:var(--ink)}
+.fc .t-b{font-weight:700}
+.fc .t-s{font-size:12.5px;fill:var(--muted)}
+.fc .t-good{font-weight:700;fill:var(--good)} .fc .t-warn{font-weight:700;fill:var(--warn)} .fc .t-bad{font-weight:700;fill:var(--bad)}
+.fc .bd{fill:var(--accent)}
+.fc .t-bd{font-family:var(--mono);font-weight:600;font-size:13px;fill:var(--panel)}
+.fc .t-end{font-weight:800;fill:var(--panel);font-size:15px}
+.fc .n-step{fill:var(--bg);stroke:var(--line);stroke-width:1.2}
+.fc .n-dec{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.4}
+.fc .n-good{fill:var(--good-soft);stroke:var(--good);stroke-width:1.2}
+.fc .n-warn{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.2}
+.fc .n-bad{fill:var(--bad-soft);stroke:var(--bad);stroke-width:1.2}
+.fc .n-end{fill:var(--accent)}
+.fc .ed{fill:none;stroke:var(--muted);stroke-width:1.4}
+.fc .dash{stroke-dasharray:4 3}
+.fc .ar{fill:var(--muted)}
+/* 主幹 */
+.flow{display:grid;gap:0;position:relative}
+.step{display:grid;grid-template-columns:52px 1fr;gap:14px;position:relative}
+.rail{display:flex;flex-direction:column;align-items:center}
+.num{width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--panel);display:grid;place-items:center;
+  font-family:var(--mono);font-weight:600;font-size:16px;flex:none}
+.rail::after{content:"";flex:1;width:2px;background:var(--line);margin:6px 0}
+.step:last-child .rail::after{display:none}
+.body{padding-bottom:26px;min-width:0}
+.where{font-size:12px;color:var(--muted);letter-spacing:.06em;font-weight:500}
+h2{margin:2px 0 6px;font-size:20px;font-weight:800;line-height:1.4}
+.body p{margin:0 0 8px;text-align:justify;text-justify:inter-character}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.chip{font-size:13px;padding:2px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.chip b{font-family:var(--mono);font-weight:600}
+.note{font-size:13.5px;color:var(--muted);border-left:3px solid var(--line);padding-left:10px;margin-top:8px;text-align:justify}
+
+/* 分岔 */
+.fork{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+.route{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:4px;align-content:start;min-width:0}
+.route .tag{justify-self:start;font-size:12.5px;font-weight:700;padding:1px 10px;border-radius:999px}
+.route h3{margin:2px 0 0;font-size:16px;font-weight:800}
+.route p{margin:0;font-size:14px;color:var(--muted);text-align:justify;text-justify:inter-character}
+.route .go{font-size:13.5px;font-weight:700;margin-top:4px}
+.r-good{border-color:var(--good)} .r-good .tag{background:var(--good-soft);color:var(--good)} .r-good .go{color:var(--good)}
+.r-warn{border-color:var(--warn)} .r-warn .tag{background:var(--warn-soft);color:var(--warn)} .r-warn .go{color:var(--warn)}
+.r-bad{border-color:var(--bad)} .r-bad .tag{background:var(--bad-soft);color:var(--bad)} .r-bad .go{color:var(--bad)}
+
+/* 時框對照 */
+.tfs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+.tf{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.tf.main{border-color:var(--accent);background:var(--accent-soft)}
+.tf b{display:block;font-size:15px}
+.tf small{display:inline-block;font-size:12px;color:var(--accent);font-weight:700;margin-bottom:2px}
+.tf p{margin:2px 0 0;font-size:14px;color:var(--muted);text-align:justify}
+.tf p strong{color:var(--ink)}
+
+.checks{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.checks li{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px 10px 40px;position:relative;font-size:14.5px}
+.checks li::before{content:"";position:absolute;left:14px;top:14px;width:14px;height:14px;border:2px solid var(--accent);border-radius:4px}
+
+.outro{display:grid;gap:14px;margin-top:8px}
+.cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;background:var(--good-soft);border:1px solid var(--good);border-radius:14px;padding:16px 18px}
+.cta h2{margin:0 0 2px;color:var(--good)}
+.cta p{margin:0}
+.btn{background:var(--good);color:var(--panel);text-decoration:none;font-weight:700;padding:10px 18px;border-radius:10px;white-space:nowrap}
+.btn:focus-visible,.social a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.author{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;padding:14px 2px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.who{display:grid;gap:2px}
+.who b{font-size:15px}
+.who span{font-size:13.5px;color:var(--muted)}
+.who a{color:var(--accent);font-weight:600}
+.social{display:flex;flex-wrap:wrap;gap:8px}
+.social a{color:var(--ink);text-decoration:none;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;font-size:13px}
+.social a:hover{border-color:var(--accent);color:var(--accent)}
+.disc{margin:0;font-size:12.5px;color:var(--muted);text-align:justify}
+.end{margin-top:6px;background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:14px 16px;font-size:13.5px;color:var(--muted);text-align:justify}
+@media (max-width:520px){
+  .step{grid-template-columns:40px 1fr;gap:10px}
+  .num{width:32px;height:32px;font-size:14px}
+  h2{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">網格下單 SOP</div>
+    <h1>網格開單流程</h1>
+    <p class="lede">從市值前 100 大的幣開始，一關一關往下篩，最後決定開哪一種網格。<br>所有判斷都以日線為準，其他週期當作參考。</p>
+    <div class="legend">
+      <span><i style="background:var(--good)"></i>可以往下走</span>
+      <span><i style="background:var(--warn)"></i>可以走，但要多看一眼</span>
+      <span><i style="background:var(--bad)"></i>先停下來</span>
+    </div>
+  </header>
+
+  <section class="overview" aria-labelledby="ov-h">
+    <h2 id="ov-h">一張圖看懂</h2>
+    <div class="fc"><svg viewBox="0 0 360 652" role="img" aria-label="網格開單流程圖：選週期、粗篩、判斷市況、看線圖定多空、選擇網格、開單前確認"><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ar"/></marker></defs><rect x="55" y="0" width="250" height="42" rx="10" class="n-step"/><circle cx="77" cy="21.0" r="12" class="bd"/><text x="77" y="25.5" class="t-bd">0</text><text x="195.0" y="26.0" class="t-b">選週期：日線為主</text><path d="M180,42 L180,56" class="ed" marker-end="url(#ar)"/><rect x="30" y="58" width="300" height="54" rx="10" class="n-step"/><circle cx="52" cy="85.0" r="12" class="bd"/><text x="52" y="89.5" class="t-bd">1</text><circle cx="79" cy="85.0" r="12" class="bd"/><text x="79" y="89.5" class="t-bd">2</text><circle cx="106" cy="85.0" r="12" class="bd"/><text x="106" y="89.5" class="t-bd">3</text><text x="222.0" y="81.5" class="t-b">頁面 1 粗篩</text><text x="222.0" y="98.5" class="t-s">交易量・波動率・ER</text><path d="M180,112 L180,126" class="ed" marker-end="url(#ar)"/><polygon points="60,157 82,128 278,128 300,157 278,186 82,186" class="n-dec"/><circle cx="100.0" cy="157.0" r="12" class="bd"/><text x="100.0" y="161.5" class="t-bd">4</text><text x="197.0" y="153.5" class="t-b">判斷市況</text><text x="197.0" y="170.5" class="t-s">ER ＋ ADX</text><path d="M180,186 L180,200" class="ed"/><path d="M62,200 L298,200" class="ed"/><path d="M62,200 L62,216" class="ed" marker-end="url(#ar)"/><path d="M180,200 L180,216" class="ed" marker-end="url(#ar)"/><path d="M298,200 L298,216" class="ed" marker-end="url(#ar)"/><rect x="8" y="218" width="108" height="58" rx="10" class="n-bad"/><text x="62.0" y="243.5" class="t-bad">強趨勢</text><text x="62.0" y="260.5" class="t-s">先觀望</text><rect x="126" y="218" width="108" height="58" rx="10" class="n-good"/><text x="180.0" y="243.5" class="t-good">有方向／震盪</text><text x="180.0" y="260.5" class="t-s">往下走</text><rect x="244" y="218" width="108" height="58" rx="10" class="n-warn"/><text x="298.0" y="243.5" class="t-warn">兩指標分歧</text><text x="298.0" y="260.5" class="t-s">品質較低</text><path d="M180,276 L180,302" class="ed" marker-end="url(#ar)"/><path d="M298,276 L298,290 L194,290 L194,302" class="ed dash" marker-end="url(#ar)"/><rect x="55" y="304" width="250" height="42" rx="10" class="n-step"/><circle cx="77" cy="325.0" r="12" class="bd"/><text x="77" y="329.5" class="t-bd">5</text><text x="195.0" y="330.0" class="t-b">看線圖定多空</text><path d="M180,346 L180,360" class="ed" marker-end="url(#ar)"/><polygon points="60,388 82,362 278,362 300,388 278,414 82,414" class="n-dec"/><circle cx="100.0" cy="388.0" r="12" class="bd"/><text x="100.0" y="392.5" class="t-bd">6</text><text x="197.0" y="393.0" class="t-b">依方向選擇網格</text><path d="M180,414 L180,428" class="ed"/><path d="M62,428 L298,428" class="ed"/><path d="M62,428 L62,444" class="ed" marker-end="url(#ar)"/><path d="M180,428 L180,444" class="ed" marker-end="url(#ar)"/><path d="M298,428 L298,444" class="ed" marker-end="url(#ar)"/><rect x="8" y="446" width="108" height="74" rx="10" class="n-good"/><text x="62.0" y="471.0" class="t-good">看多</text><text x="62.0" y="488.0" class="t-s">現貨網格</text><text x="62.0" y="505.0" class="t-s">或做多合約</text><rect x="126" y="446" width="108" height="74" rx="10" class="n-good"/><text x="180.0" y="471.0" class="t-good">看空</text><text x="180.0" y="488.0" class="t-s">做空合約網格</text><text x="180.0" y="505.0" class="t-s">（現貨不適用）</text><rect x="244" y="446" width="108" height="74" rx="10" class="n-warn"/><text x="298.0" y="471.0" class="t-warn">震盪</text><text x="298.0" y="488.0" class="t-s">現貨網格</text><text x="298.0" y="505.0" class="t-s">或中性合約</text><path d="M62,520 L62,534" class="ed"/><path d="M180,520 L180,534" class="ed"/><path d="M298,520 L298,534" class="ed"/><path d="M62,534 L298,534" class="ed"/><path d="M180,534 L180,550" class="ed" marker-end="url(#ar)"/><rect x="55" y="552" width="250" height="42" rx="10" class="n-step"/><circle cx="77" cy="573.0" r="12" class="bd"/><text x="77" y="577.5" class="t-bd">7</text><text x="195.0" y="578.0" class="t-b">開單前確認（頁面 3）</text><path d="M180,594 L180,608" class="ed" marker-end="url(#ar)"/><rect x="120" y="610" width="120" height="38" rx="19" class="n-end"/><text x="180" y="634" class="t-end">開單</text></svg></div>
+  </section>
+
+  <h2 class="sec-h">逐關說明</h2>
+  <div class="flow">
+
+    <section class="step">
+      <div class="rail"><div class="num">0</div></div>
+      <div class="body">
+        <div class="where">工具頁首・K 線週期</div>
+        <h2>先選週期：以日線為主</h2>
+        <p>切換週期時，指標取用的 K 線不同，得出的結論也可能不同。<br>建議以日線為主，4 小時和週線為輔。<br>網格追求的是中長期持續震盪的格局，不是一兩天就關掉的短沖單。</p>
+        <div class="tfs">
+          <div class="tf main"><small>主</small><b>日線</b><p><strong>看中期趨勢。</strong>一般的網格單，以日線的判斷為準。</p></div>
+          <div class="tf"><small>輔</small><b>4 小時</b><p><strong>看當下的細節。</strong>一根日線由 6 根 4 小時 K 線組成。遇到重大事件時（例如美國 FOMC 利率決議），當天的日線還沒收盤、看不出變化，可以切過來確認。</p></div>
+          <div class="tf"><small>輔</small><b>週線</b><p><strong>看大格局。</strong>想開寬區間、長時間持有的「天地單」，以週線為參考。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="rail"><div class="num">1</div></div>
+      <div class="body">
+        <div class="where">頁面 1・24h 成交量</div>
+        <h2>交易量：用預設值</h2>
+        <p>交易量越大，成交時越不容易有滑點。前 100 大的幣交易量通常都不差，用系統預設值就好，不用特別調整。</p>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="rail"><div class="num">2</div></div>
+      <div class="body">
+        <div class="where">頁面 1・ATR%(30)</div>
+        <h2>波動率：網格喜歡波動</h2>
+        <p>波動越大，價格來回碰到格子的次數越多，網格刷得越多。選到波動大的幣，就先贏一半。</p>
+        <div class="chips">
+          <span class="chip">下限：比特幣當下的 ATR%（例：<b>3.6%</b>，每天變動）</span>
+          <span class="chip">預設上限：<b>8%</b></span>
+        </div>
+        <p class="note">能承受更大波動的話，可以把上限往右拉。但波動越大，價格衝出區間、合約爆倉的機會也越高。因應方式：區間要拉夠寬，合約槓桿要開低。</p>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="rail"><div class="num">3</div></div>
+      <div class="body">
+        <div class="where">頁面 1・ER(30)</div>
+        <h2>粗篩：排除走得太直的幣</h2>
+        <p>一開始只用 ER 篩選，ER 小於 <b style="font-family:var(--mono)">0.6</b> 才通過，把一路單邊暴漲或暴跌的幣先排除。ER 和 ATR 一樣取 30 根 K 線，看的時間長度一致。</p>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="rail"><div class="num">4</div></div>
+      <div class="body">
+        <div class="where">頁面 2・ER(30) ＋ ADX(14)</div>
+        <h2>判斷市況：震盪、有方向，還是強趨勢</h2>
+        <p>接下來再加上 ADX，避免只依賴 ER 一個指標。兩個指標各自分成「震盪、有方向、強趨勢」三段。落在同一段代表看法一致，訊號品質較高；落在不同段就是分歧，訊號品質較低。</p>
+        <div class="fork">
+          <div class="route r-bad"><span class="tag">強趨勢</span><h3>先觀望</h3><p>網格不適合直線暴衝或斷崖式暴跌的單邊行情。</p><div class="go">不進場</div></div>
+          <div class="route r-good"><span class="tag">有方向</span><h3>適合開網格</h3><p>已經走出一個方向，接著確認是往上還是往下。</p><div class="go">→ 第 5 關</div></div>
+          <div class="route r-good"><span class="tag">震盪</span><h3>適合開網格</h3><p>價格在區間內來回，網格最喜歡的行情。</p><div class="go">→ 第 5 關</div></div>
+          <div class="route r-warn"><span class="tag">兩指標分歧</span><h3>訊號品質較低</h3><p>兩個指標看法不一樣，這次判斷的可信度比較低，心裡要有數。</p><div class="go">→ 第 5 關，更仔細看線圖</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="rail"><div class="num">5</div></div>
+      <div class="body">
+        <div class="where">頁面 2・線圖</div>
+        <h2>看線圖，決定看多還是看空</h2>
+        <p>ER 和 ADX 只看得出強弱和是否盤整，看不出多空，方向要靠線圖判斷。<br>以日線為主，4 小時看細節，週線看大格局。</p>
+        <p class="note">例：日線看起來在下跌，但放到週線來看，其實是上漲途中的牛旗回檔，之後通常會延續原本的漲勢。</p>
+        <p>如果是震盪：可以不預判方向；也可以往上看大一級的週期，依過去的趨勢研判未來的方向。</p>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="rail"><div class="num">6</div></div>
+      <div class="body">
+        <div class="where">頁面 2・選擇網格</div>
+        <h2>依方向選擇網格</h2>
+        <p>現貨網格的本質是做多，沒辦法做空。看空的時候，只有合約網格可以走。</p>
+        <div class="fork">
+          <div class="route r-good"><span class="tag">看多</span><h3>現貨網格，或做多合約網格</h3><p>現貨不會爆倉；合約可以加槓桿，但要顧好強平價。</p></div>
+          <div class="route r-good"><span class="tag">看空</span><h3>做空合約網格</h3><p>現貨網格的本質是做多，看空時不建議使用。</p></div>
+          <div class="route r-warn"><span class="tag">震盪、不預判方向</span><h3>現貨網格，或中性合約網格</h3><p>中性網格上下兩側都有爆倉風險，不適合長期持有。</p><p>如果打算長期持有，價格遲早會走出方向，就要回到前面，重新判斷看多還是看空。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step">
+      <div class="rail"><div class="num">7</div></div>
+      <div class="body">
+        <div class="where">頁面 3・檢查清單</div>
+        <h2>開單前最後確認</h2>
+        <ul class="checks">
+          <li>現價在網格區間的中段，太靠邊界容易一開就出網。</li>
+          <li>單格利潤率低於 ATR% 的一半，格子才會常常成交。</li>
+          <li>合約網格：派網顯示的預估強平價，在網格區間外。</li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="outro">
+    <section class="cta">
+      <div>
+        <h2>照著流程走一次</h2>
+        <p>打開網格工具，從頁面 1 開始，一關一關對照這份流程。</p>
+      </div>
+      <a class="btn" href="https://leoyu7283.github.io/grid-sop/" target="_blank" rel="noopener">開啟網格工具</a>
+    </section>
+    <section class="author">
+      <div class="who"><b>Leo Yu｜幣圈網格實戰</b><span>網格策略持續在 IG 連載更新，追蹤 <a href="https://www.instagram.com/imo_weekly/" target="_blank" rel="noopener">@imo_weekly</a>。</span></div>
+      <nav class="social" aria-label="作者的自媒體">
+        <a href="https://www.instagram.com/imo_weekly/" target="_blank" rel="noopener">IG</a>
+        <a href="https://www.threads.com/@imo_weekly" target="_blank" rel="noopener">Threads</a>
+        <a href="https://x.com/leo7283" target="_blank" rel="noopener">X</a>
+        <a href="https://imoweekly.im/" target="_blank" rel="noopener">電子報</a>
+        <a href="https://line.me/ti/g2/VgBtydnjyN6sBzZLHzXo4L5ulZZfXcZenfzZZQ?utm_source=invitation&amp;utm_medium=link_copy&amp;utm_campaign=default" target="_blank" rel="noopener">LINE 社群</a>
+      </nav>
+    </section>
+    <p class="disc">這份流程是 Leo 個人的判斷思路，不是喊單，也不保證獲利。工具上的數字會隨行情變動，開單與否請自行斟酌。</p>
+  </footer>
+</div>
+</body>
+</html>
