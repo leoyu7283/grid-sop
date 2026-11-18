@@ -10,9 +10,10 @@
 <script>try{var t=localStorage.getItem("gridsop:theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
 :root{
-  --paper:#EEF1F4; --panel:#FFFFFF; --ink:#16202E; --muted:#5C6878; --line:#D4DAE1;
-  --accent:#1F5FBF; --accent-soft:rgba(31,95,191,.10); --band:rgba(31,95,191,.07);
-  --warn:#A8670E; --warn-soft:#FBF1DF; --bad:#B23A48; --bad-soft:#F8E6E8; --good:#2A7A55; --good-soft:#E3F1EA;
+  /* 品牌色：深靛藍 #262261、青藍 #4FBBC4、亮黃 #EAE065 */
+  --paper:#EEF5F6; --panel:#FFFFFF; --ink:#1B1A3F; --muted:#586078; --line:#D2E0E4;
+  --accent:#262261; --accent-soft:rgba(38,34,97,.09); --band:rgba(79,187,196,.14);
+  --warn:#C0640F; --warn-soft:#FCEEDD; --bad:#B23A48; --bad-soft:#F8E6E8; --good:#2A7A55; --good-soft:#E3F1EA;
   --num:"IBM Plex Sans","Noto Sans TC",system-ui,sans-serif;
   --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   box-sizing:border-box;
@@ -22,18 +23,18 @@
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --paper:#11161D; --panel:#19202A; --ink:#E4E9EF; --muted:#94A0AF; --line:#2C3542;
-    --accent:#6FA2F0; --accent-soft:rgba(111,162,240,.14); --band:rgba(111,162,240,.09);
-    --warn:#E0A650; --warn-soft:#33291A; --bad:#E57C88; --bad-soft:#3A1F24; --good:#6CC49A; --good-soft:#1B3128;
-    --on-accent:#0E1620;
+    --paper:#14132F; --panel:#1D1B42; --ink:#E7EEF4; --muted:#A0A6C6; --line:#312E62;
+    --accent:#4FBBC4; --accent-soft:rgba(79,187,196,.15); --band:rgba(79,187,196,.10);
+    --warn:#F2A35A; --warn-soft:#3A2A1A; --bad:#E57C88; --bad-soft:#3A1F24; --good:#6CC49A; --good-soft:#1B3128;
+    --on-accent:#14132F;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --paper:#11161D; --panel:#19202A; --ink:#E4E9EF; --muted:#94A0AF; --line:#2C3542;
-  --accent:#6FA2F0; --accent-soft:rgba(111,162,240,.14); --band:rgba(111,162,240,.09);
-  --warn:#E0A650; --warn-soft:#33291A; --bad:#E57C88; --bad-soft:#3A1F24; --good:#6CC49A; --good-soft:#1B3128;
-  --on-accent:#0E1620;
+  --paper:#14132F; --panel:#1D1B42; --ink:#E7EEF4; --muted:#A0A6C6; --line:#312E62;
+  --accent:#4FBBC4; --accent-soft:rgba(79,187,196,.15); --band:rgba(79,187,196,.10);
+  --warn:#F2A35A; --warn-soft:#3A2A1A; --bad:#E57C88; --bad-soft:#3A1F24; --good:#6CC49A; --good-soft:#1B3128;
+  --on-accent:#14132F;
   color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:inherit}
