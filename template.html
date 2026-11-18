@@ -64,6 +64,9 @@ nav.steps{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:
 nav.steps .wrap{display:flex;gap:0;overflow-x:auto}
 nav.steps button{border:0;background:none;cursor:pointer;padding:14px 18px 12px;display:flex;gap:10px;align-items:baseline;border-bottom:3px solid transparent;white-space:nowrap;color:var(--muted)}
 nav.steps button b{font-family:var(--num);font-weight:600;font-size:13px;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor}
+/* 內文提到頁面時，用跟上方頁籤一樣的圓圈數字 */
+.pgw{white-space:nowrap}
+b.pg{font-family:var(--num);font-weight:600;font-size:12px;display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;border:1.5px solid currentColor;margin:0 3px;vertical-align:1px;line-height:1}
 nav.steps button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:700}
 nav.steps button[aria-selected="true"] b{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 nav.steps .picked{margin-left:auto;align-self:center;font-size:13px;color:var(--muted);white-space:nowrap;padding-left:16px}
@@ -347,7 +350,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
   <!-- STEP 1 -->
   <section id="s1">
     <div class="mode" id="modeTag"></div>
-    <p class="lede">前 100 大扣掉穩定幣、派網未上架和上市太短的幣後，用三個條件做第一關篩選。通過的幣點進去，到第 2 步看線圖再決定。</p>
+    <p class="lede">前 100 大扣掉穩定幣、派網未上架和上市太短的幣後，用三個條件做第一關篩選。通過的幣點進去，到<span class="pgw">頁面 <b class="pg">2</b></span>看線圖再決定。</p>
     <div class="helptip" id="helpTip" hidden><span>點標題旁的 <span class="ib" aria-hidden="true">i</span> 可以查看說明，或開啟頁面上方的「顯示說明」。</span><button type="button" class="linkbtn" id="helpTipX">知道了</button></div>
     <div class="filters">
       <div class="f">
@@ -382,7 +385,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
           <li><b class="num">0.3～0.6</b><span>有方向。適合做多或做空網格。</span></li>
           <li><b class="num">&gt; 0.6</b><span>強趨勢，先觀望。</span></li>
         </ul>
-        <span class="hp">取 30 根，是為了對齊第 2 步觀測範圍的預設值。</span>
+        <span class="hp">取 30 根，是為了對齊<span class="pgw">頁面 <b class="pg">2</b></span>觀測範圍的預設值。</span>
         </div>
       </div>
     </div>
@@ -411,7 +414,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
 
   <!-- STEP 2 -->
   <section id="s2" hidden>
-    <div id="s2empty" class="empty"><span id="s2emptyMsg">先在第 1 步選一個幣。</span><br><br><button class="btn primary" data-goto="1">回到篩選</button></div>
+    <div id="s2empty" class="empty"><span id="s2emptyMsg">先在<span class="pgw">頁面 <b class="pg">1</b></span>選一個幣。</span><br><br><button class="btn primary" data-goto="1">回到篩選</button></div>
     <div id="s2body" hidden>
       <div class="coinhead">
         <h2 id="cName"></h2>
@@ -518,7 +521,7 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
 
   <!-- STEP 3 -->
   <section id="s3" hidden>
-    <div id="s3empty" class="empty">先在第 1 步選幣、第 2 步算好參數。<br><br><button class="btn primary" data-goto="1">回到篩選</button></div>
+    <div id="s3empty" class="empty">先在<span class="pgw">頁面 <b class="pg">1</b></span>選幣、<span class="pgw">頁面 <b class="pg">2</b></span>算好參數。<br><br><button class="btn primary" data-goto="1">回到篩選</button></div>
     <div id="s3body" hidden>
       <p class="lede" id="s3lede"></p>
       <div class="progress"><span class="num" id="progN"></span><div class="bar"><i id="progBar"></i></div></div>
@@ -635,7 +638,7 @@ function updHelp(){
     "1D": `<span class="hp">${HL}衡量這支幣每天大約波動現價的幾 %，取近 30 天平均。</span><span class="hp">數字越大，代表每天的波動幅度越大。</span>`,
     "4H": `<span class="hp">${HL}衡量這支幣每 4 小時大約波動現價的幾 %，取近 30 根 K 線平均（約 5 天）。</span><span class="hp">數字越大，代表每 4 小時的波動幅度越大。</span>`,
     "1W": `<span class="hp">${HL}衡量這支幣每週大約波動現價的幾 %，取近 30 週平均（約 7 個月）。</span><span class="hp">數字越大，代表每週的波動幅度越大。</span>`
-  }[S.tf] + '<span class="hp">預設下限是 BTC 當下的數值，可以拉滑桿自行調整。</span><span class="hp">取 30 根，是為了對齊第 2 步觀測範圍的預設值。</span>';
+  }[S.tf] + '<span class="hp">預設下限是 BTC 當下的數值，可以拉滑桿自行調整。</span><span class="hp">取 30 根，是為了對齊<span class="pgw">頁面 <b class="pg">2</b></span>觀測範圍的預設值。</span>';
   $("#tierSpot").hidden = S.mk === "perp"; $("#tierPerp").hidden = S.mk !== "perp";
 }
 function renderTable(){
@@ -993,8 +996,9 @@ function renderCoin(){
   const c = curCoin();
   $("#s2empty").hidden = !!c; $("#s2body").hidden = !c;
   const mkN = S.mk === "spot" ? "現貨" : "合約", mkO = S.mk === "spot" ? "合約" : "現貨";
-  $("#s2emptyMsg").textContent = S.sym && byS[S.sym] && !byS[S.sym][S.mk] ? `派網沒有 ${S.sym} ${mkN}，無法開${mkN}網格。請切換到${mkO}，或回第 1 步換一個幣。`
-    : S.sym && byS[S.sym] ? `${S.sym} 上市時間太短，沒有足夠的${TF[S.tf].name}資料，請切換 K 線週期或換一個幣。` : "先在第 1 步選一個幣。";
+  const PG = n => `<span class="pgw">頁面 <b class="pg">${n}</b></span>`;
+  $("#s2emptyMsg").innerHTML = S.sym && byS[S.sym] && !byS[S.sym][S.mk] ? `派網沒有 ${esc(S.sym)} ${mkN}，無法開${mkN}網格。請切換到${mkO}，或回${PG(1)}換一個幣。`
+    : S.sym && byS[S.sym] ? `${esc(S.sym)} 上市時間太短，沒有足夠的${TF[S.tf].name}資料，請切換 K 線週期或換一個幣。` : `先在${PG(1)}選一個幣。`;
   if (!c){ closePop(); return; }
   const d = c.tf[S.tf], r = reasons(c);
   $("#cName").innerHTML = `${esc(c.sym)}<small>${esc(c.name)}・市值第 ${c.rank} 名</small>`;
@@ -1181,7 +1185,7 @@ function renderCheck(){
   else {
     const autoFail = items.filter(it => it.auto === false);
     go.className = "go wait";
-    go.textContent = autoFail.length ? `有 ${autoFail.length} 項數據沒達標，回第 2 步調整參數或換一個幣。` : `還有 ${items.length - done} 項沒確認。`;
+    go.innerHTML = autoFail.length ? `有 ${autoFail.length} 項數據沒達標，回<span class="pgw">頁面 <b class="pg">2</b></span> 調整參數或換一個幣。` : `還有 ${items.length - done} 項沒確認。`;
   }
 }
 

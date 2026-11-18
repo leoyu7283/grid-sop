@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>網格開單流程</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<script>try{var t=localStorage.getItem("gridsop:theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -30,6 +31,10 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15.
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:36px 56px}
 .wrap{max-width:860px;margin:0 auto}
 header{display:grid;gap:10px;margin-bottom:28px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.themesw{font:inherit;font-size:13.5px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer;white-space:nowrap}
+.themesw:hover{border-color:var(--accent);color:var(--accent)}
+.themesw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .eyebrow{font-size:12.5px;letter-spacing:.12em;color:var(--accent);font-weight:700}
 h1{margin:0;font-size:clamp(28px,6vw,40px);font-weight:900;line-height:1.25;text-wrap:balance}
 .lede{margin:0;color:var(--muted);max-width:62ch;text-align:justify}
@@ -126,7 +131,7 @@ h2{margin:2px 0 6px;font-size:20px;font-weight:800;line-height:1.4}
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">網格下單 SOP</div>
+    <div class="topbar"><div class="eyebrow">網格下單 SOP</div><button type="button" class="themesw" id="themeSw" aria-label="切換淺色／深色"></button></div>
     <h1>網格開單流程</h1>
     <p class="lede">從市值前 100 大的幣開始，一關一關往下篩，最後決定開哪一種網格。<br>所有判斷都以日線為準，其他週期當作參考。</p>
     <div class="legend">
@@ -266,5 +271,22 @@ h2{margin:2px 0 6px;font-size:20px;font-weight:800;line-height:1.4}
     <p class="disc">這份流程是 Leo 個人的判斷思路，不是喊單，也不保證獲利。工具上的數字會隨行情變動，開單與否請自行斟酌。</p>
   </footer>
 </div>
+
+<script>
+// 淺色／深色切換：沒選過時跟著系統設定，選過就記住（與網格工具共用同一個設定）
+(function(){
+  var KEY = "gridsop:theme", root = document.documentElement, btn = document.getElementById("themeSw");
+  function sysDark(){ return window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches; }
+  function cur(){ return root.dataset.theme || (sysDark() ? "dark" : "light"); }
+  function paint(){ var d = cur() === "dark"; btn.textContent = d ? "☀︎ 淺色" : "☾ 深色"; btn.title = d ? "切換成淺色" : "切換成深色"; }
+  paint();
+  if (window.matchMedia){ var mq = matchMedia("(prefers-color-scheme: dark)"); if (mq.addEventListener) mq.addEventListener("change", paint); }
+  btn.addEventListener("click", function(){
+    var next = cur() === "dark" ? "light" : "dark";
+    root.dataset.theme = next; try { localStorage.setItem(KEY, next); } catch(e){}
+    paint();
+  });
+})();
+</script>
 </body>
 </html>
