@@ -166,6 +166,17 @@ details.excluded ul{columns:3 220px;padding-left:18px;color:var(--muted);font-si
 .adv-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-bottom:6px}
 .adv-k{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
 .adv-head b{font-size:18px}
+.adv-step{display:grid;grid-template-columns:24px 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.adv-step > div{min-width:0}
+.adv-n{width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--panel);display:grid;place-items:center;font-size:12.5px;font-weight:700;margin-top:2px}
+.adv-t{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-weight:700;margin-bottom:2px}
+.adv-tag{font-size:12.5px;padding:0 10px;border-radius:999px;font-weight:700}
+.adv-tag.t-ok{background:var(--good-soft);color:var(--good)} .adv-tag.t-split{background:var(--warn-soft);color:var(--warn)} .adv-tag.t-bad{background:var(--bad-soft);color:var(--bad)}
+.adv-ind{font-size:12.5px;font-weight:400;color:var(--muted)}
+.adv-choice{display:block;font-size:16.5px;margin:1px 0 2px}
+.cs-ok .adv-choice{color:var(--good)} .cs-split .adv-choice{color:var(--warn)} .cs-bad .adv-choice{color:var(--bad)}
+@media (max-width:520px){.adv-step dl{grid-template-columns:1fr;gap:0}.adv-step dt{margin-top:4px;font-size:12.5px}}
+.advice .adv-foot{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
 .cs-ok .adv-head b{color:var(--good)} .cs-split .adv-head b{color:var(--warn)} .cs-bad .adv-head b{color:var(--bad)}
 .adv-conf{font-size:13px;font-weight:600;padding:1px 10px;border-radius:999px;background:var(--panel);color:var(--ink)}
 .advice dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0 0 6px}
@@ -410,11 +421,11 @@ footer{border-top:1px solid var(--line);padding:18px 0 28px;font-size:12.5px;col
       <div class="stats" id="cStats"></div>
       <div class="advice" id="consensus" hidden></div>
       <div class="helpsrc" id="h-adv" hidden>
-        <span class="hp"><span class="hl">開單分析</span>整理目前 K 線週期的狀態，幫你決定下一步。</span>
-        <span class="hp">訊號品質：ER 和 ADX 看法一致（都震盪、都有方向，或都是強趨勢）為高；不一致為低。</span>
-        <span class="hp">強趨勢先觀望；有方向就看線圖確認；震盪可以考慮中性網格，想做單邊的話，參考大一級週期的方向，因為震盪通常被更大的趨勢包住。</span>
-        <span class="hp">走勢結構比較最近兩個波段的高點和低點：都越來越高是多頭結構，都越來越低是空頭結構；只有其中一個在升或降，標示為偏多或偏空；其他是盤整。一般單看日線和 4 小時，天地單只看週線。</span>
-        <span class="hp">這裡只整理數據呈現的狀態，不構成投資建議，開單與否請自行判斷。</span>
+        <span class="hp"><span class="hl">開單分析</span>照「網格開單流程」的第 4 到第 6 關整理目前週期的數據。</span>
+        <span class="hp">④ 判斷市況：ER 和 ADX 落在同一段（震盪、有方向、強趨勢）代表看法一致，訊號品質高；落在不同段就是分歧，訊號品質較低。強趨勢先觀望。</span>
+        <span class="hp">⑤ 線圖參考：ER 和 ADX 看不出多空，方向要看線圖。這裡比較最近兩個波段的高點和低點：都越來越高是多頭結構，都越來越低是空頭結構，只有其中一個在變是偏多或偏空，其他是盤整。日線對照 4 小時，週線（天地單）只看週線。震盪時另外列出大一級的週期，給想預判方向的人參考。</span>
+        <span class="hp">⑥ 選擇網格：偏多可以開現貨網格或做多合約網格；偏空只能開做空合約網格，現貨不適用；沒有明確方向就開現貨網格或中性合約網格。</span>
+        <span class="hp">這裡只整理數據，不是喊單，也不保證獲利，開單與否請自行判斷。</span>
       </div>
       <div class="helpsrc" id="h-avail" hidden>
         <span class="hp"><span class="hl">派網可開</span>依派網公開資料判斷這支幣能開現貨網格、合約網格，還是兩種都能開。</span>
@@ -725,43 +736,51 @@ function structure(c, tf){
   if (h === -1 && l === 1) return {dir:null, txt:"上下震盪越來越小，沒有方向（盤整）"};
   return {dir:null, txt:"高點、低點差不多，沒有方向（盤整）"};
 }
+// 依「網格開單流程」：④ 判斷市況 → ⑤ 線圖參考（走勢結構）→ ⑥ 依方向選擇網格
 function advice(c){
   const m = tfState(c, S.tf);
   if (!m) return null;
   const M = TFL[S.tf], utf = UPPER[S.tf], u = utf ? tfState(c, utf) : null;
   const LEAN = {long:"偏多", short:"偏空"};
-  // 走勢結構：週線（天地單）只看週線；日線、4 小時看日線和 4 小時
-  const stTfs = S.tf === "1W" ? ["1W"] : ["1D", "4H"];
+  // ⑤ 線圖參考：週線（天地單）只看週線；日線看日線＋4 小時；4 小時看 4 小時＋日線
+  const stTfs = S.tf === "1W" ? ["1W"] : S.tf === "1D" ? ["1D", "4H"] : ["4H", "1D"];
   const sts = stTfs.map(tf => [tf, structure(c, tf)]).filter(x => x[1]);
-  const st4 = (sts.find(x => x[0] === "4H") || sts.find(x => x[0] === S.tf) || [])[1];
-  const quality = m.st === "split" ? "低" : "高";
-  let head, cls, dir, next;
-  if (m.st === "strong"){ head = `強趨勢・${m.lean}，先觀望`; cls = "bad"; dir = m.dir; next = "兩個指標都顯示強趨勢，價格很容易一路衝出網格區間，先觀望。"; }
-  else if (m.st === "dir"){ head = `有方向・${m.lean}`; cls = "ok"; dir = m.dir;
-    next = `兩個指標都顯示有方向，${m.lean}。` + (st4 && st4.dir && st4.dir !== m.dir ? `但${TFL[sts.find(x => x[1] === st4)[0]]}的結構${LEAN[st4.dir]}，可能正在轉折，` : "") + "請看線圖確認方向。"; }
-  else if (m.st === "range"){ head = "震盪盤整，可考慮中性網格"; cls = "ok"; dir = "neutral";
-    next = "兩個指標都顯示震盪，可以考慮中性網格。" + (u && (u.st === "dir" || u.st === "strong") ? `想做單邊的話，大一級的${TFL[utf]}${u.lean}，可以順著${TFL[utf]}方向${u.dir === "long" ? "做多" : "做空"}。` : u ? `大一級的${TFL[utf]}也沒有明確方向。` : ""); }
-  else { head = "訊號分歧"; cls = "split"; dir = (st4 && st4.dir) || m.dir;
-    next = "ER 和 ADX 看法不一致，訊號品質較低，請看線圖再決定。" + (st4 && st4.dir ? `走勢結構目前${LEAN[st4.dir]}。` : ""); }
-  const rows = [[`${M}`, m.txt]];
-  if (u) rows.push([`${TFL[utf]}（大一級）`, u.txt]);
-  sts.forEach(([tf, x]) => rows.push([`${TFL[tf]}結構`, x.txt]));
-  next = next.replace(/([^\s（，。、：])4 小時/g, "$1 4 小時");
-  // 現貨只能做多：改成描述「對現貨網格是否有利」
+  const pri = (sts.find(x => x[0] === S.tf) || [])[1];
+  const quality = m.st === "split" ? "較低" : "高";
+  // ④ 市況
+  const s4 = {
+    strong: {tag:"強趨勢", cls:"bad", text:`兩個指標都顯示強趨勢，${m.lean}。網格不適合單邊行情，先觀望。`},
+    dir: {tag:"有方向", cls:"ok", text:"兩個指標都顯示有方向，適合開網格，接著看線圖確認多空。"},
+    range: {tag:"震盪", cls:"ok", text:"兩個指標都顯示震盪，適合開網格。"},
+    split: {tag:"兩指標分歧", cls:"split", text:"兩個指標看法不一樣，這次判斷的可信度比較低，要更仔細看線圖。"}
+  }[m.st];
+  // ⑤ 方向：以走勢結構為主；有方向但結構看不出時，參考近 30 根漲跌；震盪預設不預判
+  let lean = null, note = "";
+  if (m.st === "strong") lean = m.dir;
+  else if (m.st === "dir"){ lean = (pri && pri.dir) || m.dir; if (pri && pri.dir && pri.dir !== m.dir) note = "走勢結構和近 30 根的方向不一致，可能正在轉折。"; }
+  else if (m.st === "split") lean = pri && pri.dir || null;
+  if (m.st === "range" && u && (u.st === "dir" || u.st === "strong")) note = `如果要預判方向：大一級的${TFL[utf]}${u.lean}。`;
+  const rows = sts.map(([tf, x]) => [`${TFL[tf]}結構`, x.txt]);
+  if (m.st === "range" && u) rows.push([`${TFL[utf]}（大一級）`, u.txt]);
+  // ⑥ 依方向選擇網格
+  let choice, sub, cls = s4.cls, dir;
+  if (m.st === "strong"){ choice = "先觀望"; sub = "強趨勢不開網格。"; dir = m.dir; }
+  else if (lean === "long"){ choice = "現貨網格，或做多合約網格"; sub = `線圖參考${LEAN.long}。`; dir = "long"; }
+  else if (lean === "short"){ choice = "做空合約網格"; sub = `線圖參考${LEAN.short}，現貨網格的本質是做多，不適用。`; dir = "short"; }
+  else { choice = "現貨網格，或中性合約網格"; sub = "沒有明確方向，不預判。中性網格上下兩側都有爆倉風險。"; dir = "neutral"; }
   if (S.mk === "spot"){
-    if (m.st === "strong"){ head = m.dir === "long" ? "強勢上漲，先觀望" : "強勢下跌，先觀望"; cls = "bad"; }
-    else if (dir === "short" || (dir === "neutral" && u && u.dir === "short" && u.st !== "range" && u.st !== "split")){
-      head = dir === "short" ? "偏空，不利於現貨網格" : "震盪，但大週期偏空"; cls = dir === "short" ? "bad" : "split";
-      next = (dir === "short" ? `${M}偏空，` : `${M}在震盪，但大一級的${TFL[utf]}偏空，`) + "現貨網格只能做多，方向不利，可以觀望，或改用合約網格。";
-    } else if (m.st === "range"){ head = "震盪盤整，有利於現貨網格"; next = "兩個指標都顯示震盪，現貨網格可以在區間內低買高賣。"; }
-    return {dir:"long", quality, cls, head, rows, next};
+    if (m.st === "strong") cls = "bad";
+    else if (lean === "short"){ choice = "現貨網格不適用"; sub = "線圖參考偏空，現貨網格的本質是做多。看空時改用合約網格做空。"; cls = "bad"; }
+    else { choice = "可以開現貨網格"; sub = lean === "long" ? "線圖參考偏多。" : "沒有明確方向，現貨網格在區間內低買高賣。"; }
+    dir = "long";
   }
-  return {dir, quality, cls, head, rows, next, wait: m.st === "strong"};
+  const fix = t => t.replace(/([^\s（，。、：])4 小時/g, "$1 4 小時");
+  return {dir, quality, cls, s4, rows, note: fix(note), choice, sub, wait: m.st === "strong"};
 }
 // 「自動」方向的說明句，跟著共識列的狀態走
 function dirNote(c, d, g){
   const av = advice(c);
-  if (av) return `目前採用：${DIRN[g.dir]}（依上方開單分析）。` + (av.wait ? "數據顯示適合先觀望，如果還是要開，請把槓桿調低。" : g.dir === "neutral" ? "中性屬進階，請留意上下兩側的強平價。" : "");
+  if (av) return `目前採用：${DIRN[g.dir]}（依上方開單分析）。` + (av.wait ? "目前是強趨勢，適合先觀望；如果還是要開，請把槓桿調低。" : g.dir === "neutral" ? "中性屬進階，請留意上下兩側的強平價。" : "");
   const ch = chg30(c), mv = `近 30 根 K 線${ch >= 0 ? "上漲" : "下跌"} ${Math.abs(ch).toFixed(1)}%`, D = DIRN[g.dir];
   const cs = consensus(d, c);
   if (!cs) return `目前採用：${D}。${mv}。ADX 資料不足，請先看線圖確認再開單。`;
@@ -992,9 +1011,12 @@ function renderCoin(){
   cbox.hidden = !av;
   if (av){
     cbox.className = "advice cs-" + av.cls;
-    cbox.innerHTML = `<div class="adv-head"><span class="adv-k">開單分析・${TFL[S.tf]}<button type="button" class="ib keep" data-help="h-adv" aria-label="說明">i</button></span><b>${av.head}</b><span class="adv-conf">訊號品質：${av.quality}</span></div>
-      <dl>${av.rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
-      <p>${av.next}</p>`;
+    const d0 = c.tf[S.tf];
+    cbox.innerHTML = `<div class="adv-head"><span class="adv-k">開單分析・${TFL[S.tf]}<button type="button" class="ib keep" data-help="h-adv" aria-label="說明">i</button></span><span class="adv-conf">訊號品質：${av.quality}</span></div>
+      <div class="adv-step"><span class="adv-n">4</span><div><div class="adv-t">判斷市況<span class="adv-tag t-${av.s4.cls}">${av.s4.tag}</span><span class="adv-ind">ER ${d0.er.toFixed(2)}・ADX ${d0.adx.toFixed(1)}</span></div><p>${av.s4.text}</p></div></div>
+      ${av.wait ? "" : `<div class="adv-step"><span class="adv-n">5</span><div><div class="adv-t">線圖參考</div><dl>${av.rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>${av.note ? `<p>${av.note}</p>` : ""}</div></div>`}
+      <div class="adv-step"><span class="adv-n">6</span><div><div class="adv-t">選擇網格</div><b class="adv-choice">${av.choice}</b><p>${av.sub}</p></div></div>
+      <p class="adv-foot">以上是數據整理，最後請以線圖判斷。</p>`;
   }
 
   // form state
@@ -1112,7 +1134,7 @@ function chartGuide(c, g){
     neutral: "看最近 10 根 K 線：在區間內上下來回，沒有一路往同一個方向走。"
   }[dir];
   const av = advice(c);
-  return look + (av && av.quality === "低" ? "這次 ER 和 ADX 分歧、訊號品質低，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
+  return look + (av && av.quality === "較低" ? "這次 ER 和 ADX 分歧、訊號品質較低，這一項特別重要。" : "") + "順便看一眼 BTC，大盤急殺時多數幣會一起跌出區間。";
 }
 function checklistItems(c, g){
   const d = c.tf[S.tf];
